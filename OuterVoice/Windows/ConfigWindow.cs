@@ -117,6 +117,14 @@ public sealed partial class ConfigWindow : Window
         }
         HelpMarker("Minimum time between any two lines. Urgent events (deaths, wipes) can still cut in.");
 
+        var follow = cfg.FollowGameVolume;
+        if (ImGui.Checkbox("Follow the game's Master and Voice volume", ref follow))
+        {
+            cfg.FollowGameVolume = follow;
+            cfg.Save();
+        }
+        HelpMarker("Voices get quieter with the game's Master and Voice sliders, and go silent when either is muted.");
+
         Section("Text");
         var textMode = (int)cfg.TextOutput;
         if (ImGui.Combo("Show text as", ref textMode, "Nothing\0Chat (only you see it)\0Toast\0Battle-talk pop-up\0"))

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Dalamud.Game.Config;
 using Dalamud.Game.Gui.Toast;
 using Dalamud.Game.Text.SeStringHandling;
 
@@ -85,7 +86,7 @@ public sealed class Speaker
         if (line.AudioPath != null)
         {
             var prefs = pack == Pack ? null : cfg.PrefsFor(pack.Character);
-            var volume = cfg.Volume * (prefs?.Volume ?? 100) / 100;
+            var volume = cfg.Volume * (prefs?.Volume ?? 100) / 100 * GameVolumePercent() / 100;
             plugin.Player.Play(line.AudioPath, volume, def.Priority);
         }
 
@@ -120,6 +121,32 @@ public sealed class Speaker
         }
 
         return options[^1];
+    }
+
+    /// <summary>
+    /// The game's Master x Voice volume (0-100), or 0 if either is muted. Voices play through
+    /// Windows directly, not through the game's mixer, so the plugin applies these itself.
+    /// </summary>
+    public int GameVolumePercent()
+    {
+        if (!plugin.Configuration.FollowGameVolume)
+            return 100;
+
+        try
+        {
+            if ((Plugin.GameConfig.TryGet(SystemConfigOption.IsSndMaster, out uint masterMuted) && masterMuted != 0) ||
+                (Plugin.GameConfig.TryGet(SystemConfigOption.IsSndVoice, out uint voiceMuted) && voiceMuted != 0))
+                return 0;
+
+            var master = Plugin.GameConfig.TryGet(SystemConfigOption.SoundMaster, out uint m) ? (int)m : 100;
+            var voice = Plugin.GameConfig.TryGet(SystemConfigOption.SoundVoice, out uint v) ? (int)v : 100;
+            return Math.Clamp(master, 0, 100) * Math.Clamp(voice, 0, 100) / 100;
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Debug(ex, "Couldn't read the game's volume settings");
+            return 100;
+        }
     }
 
     public void ShowText(string name, string text)

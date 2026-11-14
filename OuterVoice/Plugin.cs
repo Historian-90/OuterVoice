@@ -23,8 +23,10 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IToastGui ToastGui { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+    [PluginService] internal static IGameConfig GameConfig { get; private set; } = null!;
 
-    private const string Command = "/voice";
+    private const string Command = "/outervoice";
+    private const string ShortCommand = "/ov";
 
     internal static Plugin Instance { get; private set; } = null!;
 
@@ -66,13 +68,15 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(Command, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open the voice settings. '/voice on', '/voice off', '/voice test <event> [job]', '/voice reload'.",
+            HelpMessage = "Open Outer Voice. Also: on, off, test <event> [job], reload. Short form: /ov",
         });
+        CommandManager.AddHandler(ShortCommand, new CommandInfo(OnCommand) { ShowInHelp = false });
     }
 
     public void Dispose()
     {
         CommandManager.RemoveHandler(Command);
+        CommandManager.RemoveHandler(ShortCommand);
         PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
         PluginInterface.UiBuilder.Draw -= FileDialogs.Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= configWindow.Toggle;
@@ -177,7 +181,7 @@ public sealed class Plugin : IDalamudPlugin
                 break;
             case "test" when parts.Length > 1:
             {
-                // /voice test <event> [job]
+                // /ov test <event> [job]
                 var testArgs = parts[1].Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 var job = testArgs.Length > 1 ? testArgs[1].ToUpperInvariant() : EventWatcher.CurrentJob() ?? "SGE";
                 if (Speaker.Test(testArgs[0], job) == null)

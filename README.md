@@ -16,7 +16,7 @@ Everything runs on your own machine. The plugin only reads what your game alread
    https://raw.githubusercontent.com/Historian-90/OuterVoice/main/repo.json
    ```
 3. Open `/xlplugins`, search for **Outer Voice**, and install it.
-4. Type `/voice` to open it.
+4. Type `/ov` (or `/outervoice`) to open it.
 
 ## Make your voice pack
 
@@ -69,10 +69,19 @@ Skill names are looked up from the game in English, so this currently assumes an
 
 ## Commands
 
-- `/voice`: open the window
-- `/voice on` / `/voice off`
-- `/voice test <event> [job]`, e.g. `/voice test raise SGE`
-- `/voice reload`: re-read your pack after editing files by hand
+`/ov` is short for `/outervoice`. (The game already uses `/voice` to mute voices.)
+
+- `/ov`: open the window
+- `/ov on` / `/ov off`
+- `/ov test <event> [job]`, e.g. `/ov test raise SGE`
+- `/ov reload`: re-read your pack after editing files by hand
+
+## Volume
+
+Voices play through Windows directly rather than through the game's sound channels. By default
+they follow the game's **Master** and **Voice** volume (and go silent when either is muted); turn
+that off on the Settings tab if you'd rather control them separately. The plugin's own Volume
+slider and per-friend volumes apply on top.
 
 ## Building it yourself
 

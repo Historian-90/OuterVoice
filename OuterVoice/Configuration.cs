@@ -28,6 +28,9 @@ public class Configuration : IPluginConfiguration
     /// <summary>0-100.</summary>
     public int Volume { get; set; } = 80;
 
+    /// <summary>Scale (and mute) voices with the game's Master and Voice volume settings.</summary>
+    public bool FollowGameVolume { get; set; } = true;
+
     /// <summary>Overrides the pack's global cooldown when >= 0.</summary>
     public int GlobalCooldownOverride { get; set; } = -1;
 
