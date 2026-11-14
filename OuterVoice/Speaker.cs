@@ -17,6 +17,10 @@ public sealed class Speaker
     private readonly Dictionary<string, DateTime> lastEventTime = new();
     private DateTime lastAnyLine = DateTime.MinValue;
 
+    // The last line each character spoke. It can't be picked again until that character says
+    // something else, so a voice never repeats itself back to back.
+    private readonly Dictionary<string, string> lastLineByVoice = new(StringComparer.OrdinalIgnoreCase);
+
     public Speaker(Plugin plugin) => this.plugin = plugin;
 
     /// <summary>Your own pack (the one you edit).</summary>
@@ -76,9 +80,18 @@ public sealed class Speaker
                 return null;
         }
 
-        var line = Pick(pack.LinesFor(job, eventName), seed);
+        var voiceKey = pack.Character;
+        var options = pack.LinesFor(job, eventName);
+        if (!force && lastLineByVoice.TryGetValue(voiceKey, out var lastKey))
+            options = options.Where(l => LineKey(l) != lastKey).ToList();
+
+        // If the only line for this event is the one just spoken, stay quiet this time.
+        var line = Pick(options, seed);
         if (line == null)
             return null;
+
+        if (!force)
+            lastLineByVoice[voiceKey] = LineKey(line);
 
         lastEventTime[cooldownKey] = now;
         lastAnyLine = now;
@@ -95,6 +108,8 @@ public sealed class Speaker
 
         return line;
     }
+
+    private static string LineKey(Line l) => $"{l.Job}/{l.Id}";
 
     /// <summary>Test helper: play a random line from your own pack.</summary>
     public Line? Test(string eventName, string job) =>

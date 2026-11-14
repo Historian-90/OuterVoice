@@ -46,6 +46,8 @@ Friends' voices play when they're in your party.
   more urgent line can cut in, and it replaces what's playing instead of overlapping.
 - **Personal events belong to their owner.** A raise, death, Kardia swap or big heal is only
   voiced by the character who did it.
+- **No back-to-back repeats.** Once a character says a line, they won't say that same line again
+  until they've said a different one. If an event only has one line, it stays quiet the next time.
 - **Shared events get one speaker.** Duty start, wipes, clears, tank deaths, clutch saves and big
   pulls are voiced by one party member, picked the same way on everyone's machine (with the same
   line), so everyone hears the same thing.
