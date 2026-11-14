@@ -12,6 +12,9 @@ public class Subscription
 {
     public string Link { get; set; } = string.Empty;
 
+    public bool IsOneDrive => Uri.TryCreate(Link, UriKind.Absolute, out var u) && OneDriveLink.IsShareLink(u);
+    public string Service => IsOneDrive ? "OneDrive" : "Dropbox";
+
     /// <summary>Locked to the character the link first delivered (impersonation guard).</summary>
     public string Character { get; set; } = string.Empty;
 
@@ -81,11 +84,16 @@ public sealed class SubscriptionManager : IDisposable
     /// <summary>Adds a link (validated) and checks it right away.</summary>
     public Subscription Add(string link)
     {
-        var direct = DropboxLink.ToDirectDownload(link); // throws with a friendly message if invalid
-        if (plugin.Configuration.Subscriptions.Any(s => s.Link == direct.ToString()))
+        // Validate and normalize (throws with a friendly message if invalid).
+        if (!Uri.TryCreate(link.Trim(), UriKind.Absolute, out var parsed))
+            throw new ArgumentException("That doesn't look like a link.");
+        var stored = OneDriveLink.IsShareLink(parsed)
+            ? OneDriveLink.Validate(link).ToString()           // resolved fresh on every check
+            : DropboxLink.ToDirectDownload(link).ToString();   // Dropbox links are already direct
+        if (plugin.Configuration.Subscriptions.Any(s => s.Link == stored))
             throw new ArgumentException("You're already subscribed to that link.");
 
-        var sub = new Subscription { Link = direct.ToString() };
+        var sub = new Subscription { Link = stored };
         plugin.Configuration.Subscriptions.Add(sub);
         plugin.Configuration.Save();
         _ = CheckAsync(sub);
@@ -120,7 +128,29 @@ public sealed class SubscriptionManager : IDisposable
         var temp = Path.Combine(Path.GetTempPath(), $"OuterVoice-{Guid.NewGuid():N}.zip");
         try
         {
-            var result = await SafeDownloader.DownloadAsync(new Uri(sub.Link), sub.ETag, temp, cts.Token);
+            SafeDownloader.Result result;
+            if (sub.IsOneDrive)
+            {
+                // OneDrive: look up the file first; its content tag tells us if it changed,
+                // so an unchanged pack is never downloaded.
+                var resolved = await OneDriveLink.ResolveAsync(new Uri(sub.Link), cts.Token);
+                var tag = "ctag:" + resolved.ContentTag;
+                if (resolved.ContentTag.Length > 0 && tag == sub.ETag && sub.Character.Length > 0)
+                {
+                    sub.LastChecked = DateTime.Now;
+                    SetStatus(sub, "Up to date", false);
+                    return;
+                }
+
+                result = await SafeDownloader.DownloadAsync(resolved.DownloadUrl, null, temp, cts.Token,
+                                                            OneDriveLink.IsAllowedHost, "OneDrive");
+                result = result with { ETag = tag };
+            }
+            else
+            {
+                result = await SafeDownloader.DownloadAsync(new Uri(sub.Link), sub.ETag, temp, cts.Token,
+                                                            DropboxLink.IsAllowedHost, "Dropbox");
+            }
             sub.LastChecked = DateTime.Now;
 
             if (result.Outcome == SafeDownloader.Outcome.NotModified || result.Sha256 == sub.Sha256)
@@ -154,7 +184,7 @@ public sealed class SubscriptionManager : IDisposable
         {
             Plugin.Log.Warning(ex, $"Couldn't check {sub.Character} ({sub.Link})");
             SetStatus(sub, ex is System.Net.Http.HttpRequestException
-                ? "Couldn't reach Dropbox (will try again later)"
+                ? $"Couldn't reach {sub.Service} (will try again later)"
                 : ex.Message, true);
         }
         finally

@@ -54,11 +54,11 @@ public sealed partial class ConfigWindow
     private void DrawPublish(VoicePack pack)
     {
         var cfg = plugin.Configuration;
-        Section("Share through Dropbox");
+        Section("Share through Dropbox or OneDrive");
 
         ImGui.PushTextWrapPos();
         ImGui.TextColored(Muted,
-            "Pick a folder inside your Dropbox folder. The plugin keeps your pack's zip there, updated every time " +
+            "Pick a folder inside your Dropbox or OneDrive folder. The plugin keeps your pack's zip there, updated every time " +
             "you save. Share that zip's link with friends once; they subscribe on their Friends tab and get your " +
             "updates automatically.");
         ImGui.PopTextWrapPos();
@@ -68,7 +68,7 @@ public sealed partial class ConfigWindow
         ImGui.SameLine();
         if (ImGui.SmallButton("Browse...##publish"))
         {
-            plugin.FileDialogs.OpenFolderDialog("Choose a folder inside Dropbox", (ok, path) =>
+            plugin.FileDialogs.OpenFolderDialog("Choose a folder inside Dropbox or OneDrive", (ok, path) =>
             {
                 if (!ok) return;
                 cfg.PublishFolder = path;
@@ -79,8 +79,9 @@ public sealed partial class ConfigWindow
         if (string.IsNullOrWhiteSpace(cfg.PublishFolder))
             return;
 
-        if (!cfg.PublishFolder.Contains("Dropbox", StringComparison.OrdinalIgnoreCase))
-            ImGui.TextColored(Warn, "This folder doesn't look like it's inside Dropbox. Friends can only subscribe to a Dropbox link.");
+        if (!cfg.PublishFolder.Contains("Dropbox", StringComparison.OrdinalIgnoreCase) &&
+            !cfg.PublishFolder.Contains("OneDrive", StringComparison.OrdinalIgnoreCase))
+            ImGui.TextColored(Warn, "This folder doesn't look like it's inside Dropbox or OneDrive, so it won't sync for friends.");
 
         var onSave = cfg.PublishOnSave;
         if (ImGui.Checkbox("Publish automatically when I save", ref onSave))
@@ -112,12 +113,12 @@ public sealed partial class ConfigWindow
         {
             ImGui.TextColored(Muted, $"File: {Path.GetFileName(target)}");
             InfoMarker("To share it:\n" +
-                       "1. In Dropbox (app or website), find this file. Share the FILE, not the folder.\n" +
-                       "2. Share -> Copy link (anyone with the link can view).\n" +
+                       "1. Find this file in Dropbox or OneDrive (File Explorer right-click works too).\n" +
+                       "   Share the FILE, not the folder.\n" +
+                       "2. Share -> \"Anyone with the link\" can view -> Copy link.\n" +
                        "3. Send the link to friends once. The file name never changes, so the link keeps working.\n\n" +
-                       "Privacy: anyone with the link can download your pack, and Dropbox may show your account\n" +
-                       "name to people who open it in a browser. Consider a Dropbox account under your RP name.\n" +
-                       "You can turn the link off in Dropbox at any time.");
+                       "Privacy: anyone with the link can download your pack, and the share page may show your\n" +
+                       "account name to people who open it in a browser. You can turn the link off at any time.");
         }
     }
 
@@ -184,7 +185,7 @@ public sealed partial class ConfigWindow
 
         // Subscribe to a Dropbox link
         ImGui.SetNextItemWidth(320);
-        ImGui.InputTextWithHint("##sublink", "Paste a friend's Dropbox link...", ref subscribeLink, 512);
+        ImGui.InputTextWithHint("##sublink", "Paste a friend's Dropbox or OneDrive link...", ref subscribeLink, 512);
         ImGui.SameLine();
         if (ImGui.Button("Subscribe") && subscribeLink.Trim().Length > 0)
         {
@@ -199,10 +200,10 @@ public sealed partial class ConfigWindow
                 SetStatus(ex.Message, true);
             }
         }
-        InfoMarker("Your friend shares their pack's zip from Dropbox (Share -> Copy link) and sends you the link.\n" +
+        InfoMarker("Your friend shares their pack's zip from Dropbox or OneDrive (Share -> Copy link) and sends you the link.\n" +
                    "The plugin checks it when you log in and every 30 minutes, and only downloads when it changed.\n" +
-                   "Only Dropbox links are accepted, downloads must be zip packs, and a link can never switch to\n" +
-                   "voicing a different character than the one it first delivered.");
+                   "Only Dropbox and personal OneDrive links are accepted, downloads must be zip packs, and a link\n" +
+                   "can never switch to voicing a different character than the one it first delivered.");
         ImGui.SameLine();
         if (ImGui.SmallButton("Check now"))
             plugin.Subscriptions.CheckAll();
@@ -214,7 +215,7 @@ public sealed partial class ConfigWindow
         if (friends.Count == 0 && waiting.Count == 0)
         {
             ImGui.Spacing();
-            ImGui.TextColored(Muted, "No friends' packs yet. Subscribe to a friend's Dropbox link, or import a .zip they sent you.");
+            ImGui.TextColored(Muted, "No friends' packs yet. Subscribe to a friend's Dropbox or OneDrive link, or import a .zip they sent you.");
             return;
         }
 
@@ -283,7 +284,7 @@ public sealed partial class ConfigWindow
                 }
                 else
                 {
-                    ImGui.TextColored(sub.StatusIsError ? Bad : Muted, sub.Status);
+                    ImGui.TextColored(sub.StatusIsError ? Bad : Muted, $"{sub.Service}: {sub.Status}");
                     if (ImGui.IsItemHovered() && sub.LastChecked != default)
                         ImGui.SetTooltip($"Last checked {sub.LastChecked:g}");
                 }

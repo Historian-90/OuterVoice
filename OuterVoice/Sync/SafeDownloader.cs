@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 namespace OuterVoice.Sync;
 
 /// <summary>
-/// Downloads a pack zip with every guard on: https only, Dropbox hosts only (checked on every
-/// redirect, so a link can't bounce to your home network), a size cap while streaming, and a
-/// check that what arrived is actually a zip.
+/// Downloads a pack zip with every guard on: https only, the cloud service's own hosts only
+/// (checked on every redirect, so a link can't bounce to your home network), a size cap while
+/// streaming, and a check that what arrived is actually a zip.
 /// </summary>
 public static class SafeDownloader
 {
@@ -29,13 +29,14 @@ public static class SafeDownloader
         return client;
     }
 
-    public static async Task<Result> DownloadAsync(Uri url, string? etag, string destFile, CancellationToken token)
+    public static async Task<Result> DownloadAsync(Uri url, string? etag, string destFile, CancellationToken token,
+                                                   Func<string, bool> isAllowedHost, string serviceName)
     {
         var current = url;
         for (var hop = 0; hop < 6; hop++)
         {
-            if (current.Scheme != Uri.UriSchemeHttps || !DropboxLink.IsAllowedHost(current.Host))
-                throw new InvalidOperationException($"Refused to download from {current.Host}: not a Dropbox address.");
+            if (current.Scheme != Uri.UriSchemeHttps || !isAllowedHost(current.Host))
+                throw new InvalidOperationException($"Refused to download from {current.Host}: not a {serviceName} address.");
 
             using var request = new HttpRequestMessage(HttpMethod.Get, current);
             if (!string.IsNullOrEmpty(etag))
@@ -46,7 +47,7 @@ public static class SafeDownloader
             if (response.StatusCode is HttpStatusCode.Moved or HttpStatusCode.Found or HttpStatusCode.SeeOther
                 or HttpStatusCode.TemporaryRedirect or HttpStatusCode.PermanentRedirect)
             {
-                var location = response.Headers.Location ?? throw new InvalidOperationException("Dropbox sent a broken redirect.");
+                var location = response.Headers.Location ?? throw new InvalidOperationException($"{serviceName} sent a broken redirect.");
                 current = location.IsAbsoluteUri ? location : new Uri(current, location);
                 continue;
             }

@@ -40,21 +40,24 @@ a mood note for whoever records it.
 
 Friends' voices play when they're in your party.
 
-### Sync through Dropbox (no more passing zips around)
+### Sync through Dropbox or OneDrive (no more passing zips around)
 
-- **Share yours:** Voice Pack tab -> **Share through Dropbox** -> pick a folder inside your Dropbox
-  folder. Your pack's zip is kept there and re-published every time you save. In Dropbox, share
-  **that file** (Share -> Copy link) and send the link to friends once.
+- **Share yours:** Voice Pack tab -> **Share through Dropbox or OneDrive** -> pick a folder inside your
+  Dropbox or OneDrive folder. Your pack's zip is kept there and re-published every time you save.
+  Share **that file** ("Anyone with the link" can view -> Copy link) and send the link to friends once.
 - **Follow a friend:** Friends tab -> paste their link -> **Subscribe**. The plugin checks it when you
   log in and every 30 minutes, and downloads only when it changed. Per friend, choose **Auto** updates
   or ask first (an **Update** button appears).
 
-Safety: only Dropbox https links are accepted (checked on every redirect too), downloads must be a
-real pack zip under 200 MB that unpacks to under 400 MB, line text is stripped of hidden control
-codes, friends' clips over 30 seconds are skipped, **Tame loud clips** limits their loudness, and a
-link can never switch to voicing a different character than the one it first delivered.
-Privacy: anyone with your link can download your pack, and Dropbox may show your account name to
-people who open it in a browser. You can turn the link off in Dropbox at any time.
+Supported links: Dropbox file links, and personal OneDrive file links (1drv.ms / onedrive.live.com).
+
+Safety: only https links on Dropbox's or OneDrive's own servers are accepted (checked on every
+redirect too), downloads must be a real pack zip under 200 MB that unpacks to under 400 MB, line
+text is stripped of hidden control codes, friends' clips over 30 seconds are skipped, **Tame loud
+clips** limits their loudness, and a link can never switch to voicing a different character than
+the one it first delivered.
+Privacy: anyone with your link can download your pack, and the share page may show your account
+name to people who open it in a browser. You can turn the link off at any time.
 
 ### No audio chaos
 

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.3.0.0</Version>
+    <Version>0.3.1.0</Version>
     <Author>CJ</Author>
     <Name>Outer Voice</Name>
     <Punchline>Voiced lines for your character, and your friends', when things happen in duties.</Punchline>
     <Description>Give your character a voice. Record lines for events like raises, deaths, Kardia swaps, wipes and clears, then share your voice pack with friends: when you're in a party together, each of you hears the other's character speak too.
 
-Only one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play. Optional: if you subscribe to a friend's Dropbox link, the plugin downloads their pack from Dropbox (and nothing else).</Description>
+Only one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play. Optional: if you subscribe to a friend's Dropbox or OneDrive link, the plugin downloads their pack from that service (and nothing else).</Description>
     <RepoUrl>https://github.com/Historian-90/OuterVoice</RepoUrl>
     <Tags>voice;roleplay;rp;flavor;party</Tags>
   </PropertyGroup>

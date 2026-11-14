@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace OuterVoice.Sync;
 
 /// <summary>
-/// Writes your pack as one zip into a folder inside Dropbox, always under the same file name, so
+/// Writes your pack as one zip into a folder inside Dropbox or OneDrive, always under the same file name, so
 /// the share link you gave friends keeps pointing at the newest version.
 /// </summary>
 public sealed class Publisher
@@ -48,7 +48,7 @@ public sealed class Publisher
         {
             SetStatus(string.IsNullOrWhiteSpace(pack.Character)
                 ? "Set your character on the Voice Pack tab first."
-                : "Choose a publish folder inside Dropbox first.", true);
+                : "Choose a publish folder inside Dropbox or OneDrive first.", true);
             return;
         }
 
@@ -59,7 +59,7 @@ public sealed class Publisher
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                // Build next to the target, then swap in one step, so Dropbox never uploads a half file.
+                // Build next to the target, then swap in one step, so the cloud app never uploads a half file.
                 var temp = target + ".partial";
                 var result = await PackSharing.ExportAsync(pack, temp, plugin.Configuration.CompressOnExport);
                 File.Move(temp, target, overwrite: true);

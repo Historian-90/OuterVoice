@@ -70,13 +70,13 @@ public class Configuration : IPluginConfiguration
         return prefs;
     }
 
-    /// <summary>Folder inside Dropbox where your pack zip is published.</summary>
+    /// <summary>Folder inside Dropbox or OneDrive where your pack zip is published.</summary>
     public string PublishFolder { get; set; } = string.Empty;
 
     /// <summary>Re-publish automatically every time you click Save.</summary>
     public bool PublishOnSave { get; set; } = true;
 
-    /// <summary>Friends' packs you follow through their Dropbox links.</summary>
+    /// <summary>Friends' packs you follow through their Dropbox or OneDrive links.</summary>
     public List<Sync.Subscription> Subscriptions { get; set; } = new();
 
     /// <summary>Lines tab: only show events that already have lines.</summary>
