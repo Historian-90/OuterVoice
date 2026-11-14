@@ -294,6 +294,8 @@ public sealed partial class ConfigWindow
             line.Text = text;
             Changed();
         }
+        if (string.IsNullOrWhiteSpace(line.Text) && line.AudioPath == null)
+            ImGui.TextColored(Warn, "Empty line: it won't play until you write something or add audio.");
 
         // Mood
         ImGui.SetNextItemWidth(95);

@@ -86,7 +86,10 @@ public sealed class Speaker
 
         var voiceKey = pack.Character;
         var triggerKey = $"{voiceKey}|{job}|{eventName}|{initial}";
-        var options = pack.LinesFor(job, eventName);
+        // A line with no text and no recording has nothing to say; never pick it.
+        var options = pack.LinesFor(job, eventName)
+                          .Where(l => !string.IsNullOrWhiteSpace(l.Text) || l.AudioPath != null)
+                          .ToList();
         if (initial.HasValue)
             options = options.Where(l => l.Initial == initial.Value).ToList();
 
@@ -126,8 +129,8 @@ public sealed class Speaker
             plugin.Player.Play(line.AudioPath, volume, def.Priority);
         }
 
-        if (line.AudioPath != null || cfg.TextWithoutAudio || force)
-            ShowText(DisplayName(pack), line.Text);
+        if (!string.IsNullOrWhiteSpace(line.Text) && (line.AudioPath != null || cfg.TextWithoutAudio || force))
+            ShowText(DisplayName(pack), line.Text.Trim());
 
         return line;
     }
