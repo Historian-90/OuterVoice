@@ -237,6 +237,7 @@ public sealed class EventWatcher : IDisposable
 
         foreach (var actor in actors)
         {
+            CheckCustomEvents(actor);
             CheckLimitBreak(actor);
             CheckSelfTriggers(actor);
             baselined.Add(actor.EntityId);
@@ -270,6 +271,80 @@ public sealed class EventWatcher : IDisposable
 
         if (casting.Add(key) && baselined.Contains(actor.EntityId))
             Say(actor, $"limit_break_{level}");
+    }
+
+    // ---- Custom events ------------------------------------------------------------------------
+
+    private readonly HashSet<(uint Caster, string Event)> customActive = new();
+    private readonly Dictionary<uint, string> actionNames = new();
+    private readonly Dictionary<uint, string> statusNames = new();
+    private readonly Dictionary<ushort, string[]> emoteNames = new();
+
+    /// <summary>Plays a custom event's line the moment all of its conditions are true together.</summary>
+    private void CheckCustomEvents(Actor actor)
+    {
+        if (actor.Obj == null || actor.Pack.CustomEvents.Count == 0)
+            return;
+
+        IReadOnlyList<string>? moodles = null; // fetched once per character per tick, only if needed
+
+        foreach (var ev in actor.Pack.CustomEvents)
+        {
+            if (!ev.IsUsable) continue;
+
+            var allTrue = ev.Conditions.All(c => c.Type switch
+            {
+                ConditionType.Cast => actor.Obj.IsCasting && NameMatches(ActionName(actor.Obj.CastActionId), c.Value),
+                ConditionType.Status => actor.Obj.StatusList.Any(st => NameMatches(StatusName(st.StatusId), c.Value)),
+                ConditionType.Emote => EmoteNamesOf(actor.Obj).Any(n => NameMatches(n, c.Value)),
+                ConditionType.Moodle => (moodles ??= MoodlesIpc.TitlesOn(actor.Obj.Address))
+                                        .Any(t => NameMatches(t, MoodlesIpc.Clean(c.Value))),
+                _ => false,
+            });
+
+            var key = (actor.EntityId, ev.Id);
+            if (allTrue && customActive.Add(key) && baselined.Contains(actor.EntityId))
+                Say(actor, ev.Id);
+            else if (!allTrue)
+                customActive.Remove(key);
+        }
+    }
+
+    private static bool NameMatches(string actual, string wanted) =>
+        string.Equals(actual.Trim(), wanted.Trim().TrimStart('/'), StringComparison.OrdinalIgnoreCase);
+
+    private string ActionName(uint id)
+    {
+        if (!actionNames.TryGetValue(id, out var name))
+            actionNames[id] = name = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()
+                                           .GetRowOrDefault(id)?.Name.ExtractText() ?? string.Empty;
+        return name;
+    }
+
+    private string StatusName(uint id)
+    {
+        if (!statusNames.TryGetValue(id, out var name))
+            statusNames[id] = name = Plugin.DataManager.GetExcelSheet<Status>()
+                                           .GetRowOrDefault(id)?.Name.ExtractText() ?? string.Empty;
+        return name;
+    }
+
+    /// <summary>The emote a character is doing, by name ("Wave") and command ("wave").</summary>
+    private unsafe string[] EmoteNamesOf(IBattleChara obj)
+    {
+        var chara = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)obj.Address;
+        if (chara == null) return [];
+        var emoteId = chara->EmoteController.EmoteId;
+        if (emoteId == 0) return [];
+
+        if (!emoteNames.TryGetValue(emoteId, out var names))
+        {
+            var row = Plugin.DataManager.GetExcelSheet<Emote>().GetRowOrDefault(emoteId);
+            var command = row?.TextCommand.ValueNullable?.Command.ExtractText().TrimStart('/') ?? string.Empty;
+            emoteNames[emoteId] = names = new[] { row?.Name.ExtractText() ?? string.Empty, command }
+                                          .Where(n => n.Length > 0).ToArray();
+        }
+        return names;
     }
 
     private static int LimitBreakLevelOf(string name)
@@ -436,6 +511,7 @@ public sealed class EventWatcher : IDisposable
         selfSeen.Clear();
         casting.Clear();
         tankLimitBreakSeen.Clear();
+        customActive.Clear();
         baselined.Clear();
         wasBigPull = false;
     }

@@ -61,6 +61,9 @@ public class VoicePack
     /// <summary>Optional timing overrides per event; anything missing uses the built-in defaults.</summary>
     public Dictionary<string, EventDef> Events { get; set; } = new();
 
+    /// <summary>Player-made events (emotes, casts, statuses, Moodles).</summary>
+    public List<CustomEvent> CustomEvents { get; set; } = new();
+
     /// <summary>Lines grouped by job abbreviation. "ALL" = lines usable on any job.</summary>
     public Dictionary<string, List<Line>> Jobs { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -123,10 +126,17 @@ public class VoicePack
         return result;
     }
 
+    /// <summary>Built-in events followed by this pack's custom events.</summary>
+    public IEnumerable<KnownEvents.Info> AllEvents() =>
+        KnownEvents.All.Concat(CustomEvents.Select(c => c.ToInfo()));
+
     public EventDef GetEvent(string name)
     {
         if (Events.TryGetValue(name, out var def))
             return def;
+        if (CustomEvents.FirstOrDefault(c => c.Id == name) is { } custom)
+            return new EventDef { Priority = custom.Priority, CooldownSeconds = custom.CooldownSeconds, Trigger = custom.Summary };
+
         var known = KnownEvents.Get(name);
         return known == null
             ? new EventDef()

@@ -90,6 +90,20 @@ already on when you zone in doesn't trigger a line.
 
 Skill names are looked up from the game in English, so this currently assumes an English client.
 
+## Custom events
+
+On the **Custom Events** tab you can make your own triggers. A custom event plays a line the moment
+**all** of its conditions are true at the same time. Conditions can be:
+
+- **Casting** an action (anything with a cast bar)
+- **Has status**: a game buff or debuff on you
+- **Doing emote**: e.g. `wave` or `/wave`
+- **Has Moodle**: a custom status from the Moodles plugin (needs Moodles; friends' Moodles count
+  when they're synced to you)
+
+Write the lines for a custom event on the Lines tab (the ALL group works for every job). Custom
+events are saved in your voice pack, so friends who import it hear them too.
+
 ## Commands
 
 `/ov` is short for `/outervoice`. (The game already uses `/voice` to mute voices.)

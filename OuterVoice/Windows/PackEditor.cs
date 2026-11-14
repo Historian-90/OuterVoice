@@ -168,7 +168,11 @@ public sealed partial class ConfigWindow
         if (!jobs.Contains(editJob))
             editJob = EventWatcher.CurrentJob() is { } cur && jobs.Contains(cur) ? cur : jobs.FirstOrDefault() ?? string.Empty;
 
-        ImGui.SetNextItemWidth(150);
+        // Left: the job you're editing (and removing it). Right, after the divider: adding a job.
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted("Editing");
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(130);
         if (ImGui.BeginCombo("##editjob", editJob.Length > 0 ? JobLabel(editJob) : "(no jobs)"))
         {
             foreach (var j in jobs)
@@ -177,10 +181,32 @@ public sealed partial class ConfigWindow
             ImGui.EndCombo();
         }
 
-        ImGui.SameLine();
+        if (editJob.Length > 0)
+        {
+            ImGui.SameLine();
+            var canRemove = ImGui.GetIO().KeyCtrl;
+            if (!canRemove) ImGui.BeginDisabled();
+            var removed = ImGui.Button("Remove job");
+            if (!canRemove) ImGui.EndDisabled();
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip("Hold Ctrl to remove this job and all its lines. (Audio files are kept.)");
+            if (removed)
+            {
+                pack.Jobs.Remove(editJob);
+                editJob = string.Empty;
+                Changed();
+                return;
+            }
+        }
+
         var available = KnownEvents.Jobs.Where(j => !pack.Jobs.ContainsKey(j)).ToArray();
         if (available.Length > 0)
         {
+            ImGui.SameLine();
+            ImGui.TextColored(Muted, "  |  ");
+            ImGui.SameLine();
+            ImGui.TextUnformatted("New");
+            ImGui.SameLine();
             if (!available.Contains(addJobChoice))
                 addJobChoice = EventWatcher.CurrentJob() is { } cur2 && available.Contains(cur2) ? cur2 : available[0];
             ImGui.SetNextItemWidth(80);
@@ -200,24 +226,6 @@ public sealed partial class ConfigWindow
             }
         }
 
-        if (editJob.Length > 0)
-        {
-            ImGui.SameLine();
-            var canRemove = ImGui.GetIO().KeyCtrl;
-            if (!canRemove) ImGui.BeginDisabled();
-            if (ImGui.Button("Remove job"))
-            {
-                pack.Jobs.Remove(editJob);
-                editJob = string.Empty;
-                Changed();
-                if (!canRemove) ImGui.EndDisabled();
-                return;
-            }
-            if (!canRemove) ImGui.EndDisabled();
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                ImGui.SetTooltip("Hold Ctrl to remove this job and all its lines. (Audio files are kept.)");
-        }
-
         if (editJob.Length == 0 || !pack.Jobs.TryGetValue(editJob, out var jobLines))
         {
             ImGui.TextColored(Muted, "Add a job to start writing lines.");
@@ -227,7 +235,7 @@ public sealed partial class ConfigWindow
         ImGui.Spacing();
         ImGui.BeginChild("##lines", new Vector2(0, 0));
 
-        foreach (var ev in KnownEvents.All)
+        foreach (var ev in pack.AllEvents())
         {
             if (!ev.AppliesTo(editJob))
                 continue;

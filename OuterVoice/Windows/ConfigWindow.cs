@@ -51,6 +51,12 @@ public sealed partial class ConfigWindow : Window
             ImGui.EndTabItem();
         }
 
+        if (ImGui.BeginTabItem("Custom Events"))
+        {
+            DrawCustomEvents();
+            ImGui.EndTabItem();
+        }
+
         if (ImGui.BeginTabItem("Friends"))
         {
             DrawFriends();
@@ -223,14 +229,15 @@ public sealed partial class ConfigWindow : Window
             ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 50);
             ImGui.TableHeadersRow();
 
-            foreach (var name in pack.Events.Keys)
+            foreach (var ev in pack.AllEvents())
             {
+                var name = ev.Name;
                 var lines = pack.LinesFor(testJob, name);
                 if (lines.Count == 0) continue;
 
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                ImGui.TextUnformatted(name.Replace('_', ' '));
+                ImGui.TextUnformatted(ev.Label);
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip(pack.GetEvent(name).Trigger);
                 ImGui.TableNextColumn();
