@@ -32,6 +32,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public Configuration Configuration { get; }
     public VoicePlayer Player { get; }
+    public LipSync Lips { get; }
     public Speaker Speaker { get; }
     public string? PackError { get; private set; }
 
@@ -53,6 +54,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
         Player = new VoicePlayer();
+        Lips = new LipSync();
         Speaker = new Speaker(this);
         ReloadPack();
         PackSharing.LoadFriends(Speaker);
@@ -85,6 +87,7 @@ public sealed class Plugin : IDalamudPlugin
 
         watcher.Dispose();
         Player.Dispose();
+        Lips.Dispose();
     }
 
     public void ReloadPack()

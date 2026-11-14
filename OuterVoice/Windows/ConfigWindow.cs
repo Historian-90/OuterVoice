@@ -124,6 +124,15 @@ public sealed partial class ConfigWindow : Window
         }
         HelpMarker("Minimum time between any two lines. Urgent events (deaths, wipes) can still cut in.");
 
+        var lips = cfg.LipSync;
+        if (ImGui.Checkbox("Move the speaker's mouth while they talk", ref lips))
+        {
+            cfg.LipSync = lips;
+            if (!lips) plugin.Lips.Stop();
+            cfg.Save();
+        }
+        HelpMarker("Uses the game's own talking-mouth animation (like NPCs in dialogue). Only on your screen; friends with your pack see it on theirs.");
+
         var follow = cfg.FollowGameVolume;
         if (ImGui.Checkbox("Follow the game's Master and Voice volume", ref follow))
         {

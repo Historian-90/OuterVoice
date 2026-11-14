@@ -494,7 +494,11 @@ public sealed partial class ConfigWindow
         if (line.AudioPath != null)
         {
             if (ImGui.SmallButton("Play"))
-                plugin.Player.Play(line.AudioPath, plugin.Configuration.Volume, 99);
+            {
+                var length = plugin.Player.Play(line.AudioPath, plugin.Configuration.Volume, 99);
+                if (plugin.Configuration.LipSync)
+                    plugin.Lips.Start(Plugin.ObjectTable.LocalPlayer?.EntityId ?? 0, length);
+            }
             if (ImGui.IsItemHovered()) ImGui.SetTooltip(line.AudioPath);
         }
         else

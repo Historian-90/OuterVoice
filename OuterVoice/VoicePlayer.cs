@@ -26,7 +26,8 @@ public sealed class VoicePlayer : IDisposable
     /// <summary>Priority of the line currently playing (0 when idle).</summary>
     public int CurrentPriority => IsPlaying ? currentPriority : 0;
 
-    public void Play(string path, int volume, int priority)
+    /// <summary>Plays a clip (replacing anything playing). Returns its length, or zero if it failed.</summary>
+    public TimeSpan Play(string path, int volume, int priority)
     {
         lock (gate)
         {
@@ -38,11 +39,13 @@ public sealed class VoicePlayer : IDisposable
                 output.Init(reader);
                 output.Play();
                 currentPriority = priority;
+                return reader.TotalTime;
             }
             catch (Exception ex)
             {
                 Plugin.Log.Warning(ex, $"Couldn't play audio file: {path}");
                 StopInternal();
+                return TimeSpan.Zero;
             }
         }
     }
@@ -51,6 +54,7 @@ public sealed class VoicePlayer : IDisposable
     {
         lock (gate)
             StopInternal();
+        Plugin.Instance?.Lips.Stop();
     }
 
     private void StopInternal()

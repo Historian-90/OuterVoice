@@ -123,6 +123,13 @@ and remembers which sections you've collapsed. Use the search box to find events
 - `/ov test <event> [job]`, e.g. `/ov test raise SGE`
 - `/ov reload`: re-read your pack after editing files by hand
 
+## Lip sync
+
+While a line plays, the speaking character's mouth moves using the game's own talking animation
+(the one NPCs use in dialogue). It only affects the mouth, so whatever the body is doing keeps
+going. It's visual and local: friends who have your pack see your character talk on their screen.
+Turn it off on the Settings tab if you prefer.
+
 ## Volume
 
 Voices play through Windows directly rather than through the game's sound channels. By default

@@ -59,7 +59,9 @@ public sealed class Speaker
     /// Returns the line spoken, if any.
     /// </summary>
     /// <param name="initial">For partner events: true = first pick, false = swap, null = any line.</param>
-    public Line? Trigger(VoicePack pack, string eventName, string job, long seed, bool force = false, bool? initial = null)
+    /// <param name="speakerEntityId">The character speaking, so their mouth can move (0 = none).</param>
+    public Line? Trigger(VoicePack pack, string eventName, string job, long seed, bool force = false, bool? initial = null,
+                         uint speakerEntityId = 0)
     {
         var cfg = plugin.Configuration;
         if (!force && !cfg.Enabled)
@@ -126,7 +128,9 @@ public sealed class Speaker
         {
             var prefs = pack == Pack ? null : cfg.PrefsFor(pack.Character);
             var volume = cfg.Volume * (prefs?.Volume ?? 100) / 100 * GameVolumePercent() / 100;
-            plugin.Player.Play(line.AudioPath, volume, def.Priority);
+            var length = plugin.Player.Play(line.AudioPath, volume, def.Priority);
+            if (cfg.LipSync && length > TimeSpan.Zero && volume > 0)
+                plugin.Lips.Start(speakerEntityId, length);
         }
 
         if (!string.IsNullOrWhiteSpace(line.Text) && (line.AudioPath != null || cfg.TextWithoutAudio || force))
@@ -139,7 +143,8 @@ public sealed class Speaker
 
     /// <summary>Test helper: play a random line from your own pack.</summary>
     public Line? Test(string eventName, string job) =>
-        Pack == null ? null : Trigger(Pack, eventName, job, Random.Shared.NextInt64(), force: true);
+        Pack == null ? null : Trigger(Pack, eventName, job, Random.Shared.NextInt64(), force: true,
+                                      speakerEntityId: Plugin.ObjectTable.LocalPlayer?.EntityId ?? 0);
 
     private static Line? Pick(List<Line> options, long seed)
     {

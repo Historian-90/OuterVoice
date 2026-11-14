@@ -409,7 +409,8 @@ public sealed class EventWatcher : IDisposable
     // ---- Who speaks ---------------------------------------------------------------------
 
     private void Say(Actor actor, string eventName, bool? initial = null) =>
-        speaker.Trigger(actor.Pack, eventName, actor.Job, Seed(actor.CharacterId, eventName), initial: initial);
+        speaker.Trigger(actor.Pack, eventName, actor.Job, Seed(actor.CharacterId, eventName), initial: initial,
+                        speakerEntityId: actor.EntityId);
 
     /// <summary>
     /// Shared events get exactly one speaker. Every player's plugin sorts the same voiced party
@@ -429,7 +430,8 @@ public sealed class EventWatcher : IDisposable
 
         var seed = Seed("shared", eventName);
         var chosen = candidates[(int)((ulong)seed % (ulong)candidates.Count)];
-        speaker.Trigger(chosen.Pack, eventName, chosen.Job, Seed(chosen.CharacterId, eventName));
+        speaker.Trigger(chosen.Pack, eventName, chosen.Job, Seed(chosen.CharacterId, eventName),
+                        speakerEntityId: chosen.EntityId);
     }
 
     /// <summary>Same number on every player's machine for the same thing in the same 5-second window.</summary>
