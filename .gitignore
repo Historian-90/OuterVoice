@@ -1,0 +1,9 @@
+.vs/
+.vscode/
+obj/
+bin/
+*.user
+# Voice packs and recordings don't belong in the code repo
+*.mp3
+*.wav
+voicepack.json

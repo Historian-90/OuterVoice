@@ -1,0 +1,69 @@
+name: Release
+
+# Push a tag like v0.1.1 to build the plugin, publish it as a GitHub release,
+# and bump repo.json so friends' Dalamud picks up the update.
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+      with:
+        ref: main
+        fetch-depth: 0
+
+    - name: Install .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Download Dalamud
+      run: |
+        Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
+        Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
+
+    - name: Work out version
+      id: ver
+      shell: pwsh
+      run: |
+        $v = "${{ github.ref_name }}".TrimStart('v')
+        # Dalamud wants four parts: 0.1.1 -> 0.1.1.0
+        while (($v.Split('.')).Count -lt 4) { $v = "$v.0" }
+        "version=$v" >> $env:GITHUB_OUTPUT
+
+    - name: Build
+      run: dotnet build OuterVoice.slnx --configuration Release -p:Version=${{ steps.ver.outputs.version }}
+
+    - name: Find packaged plugin
+      id: zip
+      shell: pwsh
+      run: |
+        $zip = Get-ChildItem -Recurse -Path OuterVoice\bin -Filter latest.zip | Select-Object -First 1
+        if (-not $zip) { throw "DalamudPackager didn't produce latest.zip" }
+        "path=$($zip.FullName)" >> $env:GITHUB_OUTPUT
+
+    - name: Publish release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: gh release create "${{ github.ref_name }}" "${{ steps.zip.outputs.path }}" --title "Outer Voice ${{ github.ref_name }}" --generate-notes
+
+    - name: Update repo.json
+      shell: pwsh
+      run: |
+        $json = Get-Content repo.json -Raw | ConvertFrom-Json
+        $json[0].AssemblyVersion = "${{ steps.ver.outputs.version }}"
+        $json[0].LastUpdate = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+        ConvertTo-Json -InputObject @($json) -Depth 5 | Set-Content repo.json -Encoding utf8
+        git config user.name "github-actions"
+        git config user.email "github-actions@users.noreply.github.com"
+        git add repo.json
+        git commit -m "Release ${{ github.ref_name }}" || exit 0
+        git push origin main
