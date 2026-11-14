@@ -227,7 +227,7 @@ public sealed partial class ConfigWindow
 
         foreach (var ev in KnownEvents.All)
         {
-            if (ev.OnlyJob != null && editJob != ev.OnlyJob && editJob != VoicePack.SharedJob)
+            if (!ev.AppliesTo(editJob))
                 continue;
 
             var evLines = jobLines.Where(l => l.Event == ev.Name).ToList();

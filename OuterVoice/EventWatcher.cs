@@ -29,20 +29,11 @@ public sealed class EventWatcher : IDisposable
     private const int BigPullCount = 5;
     private const float BigPullRange = 30f;
 
-    // Per-job "big heal" triggers: statuses that appear on the caster (from the caster), and casts.
-    // Names are English game names, looked up at load. Add jobs here as they get voice lines.
-    private static readonly Dictionary<string, (string[] Statuses, string[] Casts)> BigHealNames = new()
-    {
-        ["SGE"] = (["Kerachole", "Holos", "Panhaima"], ["Pneuma"]),
-        ["WHM"] = (["Temperance", "Liturgy of the Bell"], []),
-        ["SCH"] = (["Seraphism"], []),
-        ["AST"] = (["Neutral Sect", "Macrocosmos"], []),
-    };
-
     private readonly Speaker speaker;
-    private readonly HashSet<uint> kardionIds;
     private readonly HashSet<uint> raiseIds;
-    private readonly Dictionary<string, (HashSet<uint> Statuses, HashSet<uint> Casts)> bigHealIds = new();
+
+    /// <summary>Job triggers with their status/action names resolved to game IDs.</summary>
+    private readonly List<(JobTrigger Def, HashSet<uint> Statuses, HashSet<uint> Casts)> triggers = new();
 
     private DateTime nextTick = DateTime.MinValue;
     private int deathsThisDuty;
@@ -52,9 +43,14 @@ public sealed class EventWatcher : IDisposable
     private readonly Dictionary<uint, uint> lastHp = new();
     private readonly Dictionary<uint, DateTime> lowHpSince = new();
     private readonly HashSet<(uint Caster, uint Target)> raisesSeen = new();
-    private readonly Dictionary<uint, uint> kardionHolder = new();      // caster -> holder
-    private readonly HashSet<(uint Caster, uint Status)> bigHealsSeen = new();
-    private readonly HashSet<uint> castingBigHeal = new();
+    private readonly Dictionary<(uint Caster, string Event), uint> partnerHolder = new();
+    private readonly HashSet<(uint Caster, uint Target, uint Status)> givenSeen = new();
+    private readonly HashSet<(uint Caster, uint Status)> selfSeen = new();
+    private readonly HashSet<(uint Caster, string Event)> casting = new();
+
+    // Characters we've seen at least once since they appeared. On first sight we only record their
+    // current statuses (a tank stance that's already on shouldn't trigger a line at zone-in).
+    private readonly HashSet<uint> baselined = new();
 
     /// <summary>A party member (or you) who has a voice pack.</summary>
     private sealed record Actor(uint EntityId, string CharacterId, string Job, VoicePack Pack, IBattleChara? Obj);
@@ -64,10 +60,18 @@ public sealed class EventWatcher : IDisposable
     public EventWatcher(Speaker speaker)
     {
         this.speaker = speaker;
-        kardionIds = StatusIdsNamed("Kardion");
         raiseIds = StatusIdsNamed("Raise");
-        foreach (var (job, names) in BigHealNames)
-            bigHealIds[job] = (StatusIdsNamed(names.Statuses), ActionIdsNamed(names.Casts));
+        foreach (var t in JobTriggers.All)
+        {
+            var statuses = StatusIdsNamed(t.Statuses);
+            var casts = ActionIdsNamed(t.Casts ?? []);
+            var missing = t.Statuses.Where(n => !StatusIdsNamed(n).Any())
+                                    .Concat((t.Casts ?? []).Where(n => !ActionIdsNamed(n).Any()))
+                                    .ToList();
+            if (missing.Count > 0)
+                Plugin.Log.Info($"{t.Job} {t.Event}: no game data named {string.Join(", ", missing)}; that part won't trigger.");
+            triggers.Add((t, statuses, casts));
+        }
 
         Plugin.Framework.Update += OnUpdate;
         Plugin.DutyState.DutyStarted += OnDutyStarted;
@@ -166,44 +170,71 @@ public sealed class EventWatcher : IDisposable
                 if (raiseIds.Contains(s.StatusId) && raisesSeen.Add((caster.EntityId, m.EntityId)))
                     Say(caster, "raise");
 
-                // Kardion: track who holds each Sage's Kardion.
-                if (kardionIds.Contains(s.StatusId))
+                foreach (var (def, ids, _) in triggers)
                 {
-                    if (kardionHolder.TryGetValue(caster.EntityId, out var holder) && holder != m.EntityId)
-                        Say(caster, "kardia_swap");
-                    kardionHolder[caster.EntityId] = m.EntityId;
+                    if (def.Job != caster.Job || !ids.Contains(s.StatusId)) continue;
+                    var speak = baselined.Contains(caster.EntityId);
+
+                    if (def.Kind == TriggerKind.PartnerSwap)
+                    {
+                        // Partner moved from one party member to another (Kardia, Dance Partner).
+                        var key = (caster.EntityId, def.Event);
+                        if (speak && partnerHolder.TryGetValue(key, out var holder) && holder != m.EntityId)
+                            Say(caster, def.Event);
+                        partnerHolder[key] = m.EntityId;
+                    }
+                    else if (def.Kind == TriggerKind.GiveStatus)
+                    {
+                        if (givenSeen.Add((caster.EntityId, m.EntityId, s.StatusId)) && speak)
+                            Say(caster, def.Event);
+                    }
                 }
             }
 
             // Forget raises that have been accepted/expired so the next one fires again.
             raisesSeen.RemoveWhere(r => r.Target == m.EntityId &&
                                         !m.Statuses.Any(s => raiseIds.Contains(s.StatusId) && s.SourceId == r.Caster));
+            givenSeen.RemoveWhere(g => g.Target == m.EntityId &&
+                                       !m.Statuses.Any(s => s.StatusId == g.Status && s.SourceId == g.Caster));
         }
 
         foreach (var actor in actors)
-            CheckBigHeal(actor);
+        {
+            CheckSelfTriggers(actor);
+            baselined.Add(actor.EntityId);
+        }
 
         CheckBigPull(me);
     }
 
-    private void CheckBigHeal(Actor actor)
+    /// <summary>Self-status and cast triggers for one voiced character.</summary>
+    private void CheckSelfTriggers(Actor actor)
     {
-        if (actor.Obj == null || !bigHealIds.TryGetValue(actor.Job, out var ids))
-            return;
+        if (actor.Obj == null) return;
+        var speak = baselined.Contains(actor.EntityId);
 
-        var casting = actor.Obj.IsCasting && ids.Casts.Contains(actor.Obj.CastActionId);
-        if (casting && castingBigHeal.Add(actor.EntityId))
-            Say(actor, "big_heal");
-        else if (!casting)
-            castingBigHeal.Remove(actor.EntityId);
-
-        foreach (var statusId in ids.Statuses)
+        foreach (var (def, ids, casts) in triggers)
         {
-            var has = actor.Obj.StatusList.Any(s => s.StatusId == statusId && s.SourceId == actor.EntityId);
-            if (has && bigHealsSeen.Add((actor.EntityId, statusId)))
-                Say(actor, "big_heal");
-            else if (!has)
-                bigHealsSeen.Remove((actor.EntityId, statusId));
+            if (def.Job != actor.Job || def.Kind != TriggerKind.SelfStatus) continue;
+
+            if (casts.Count > 0)
+            {
+                var key = (actor.EntityId, def.Event);
+                var isCasting = actor.Obj.IsCasting && casts.Contains(actor.Obj.CastActionId);
+                if (isCasting && casting.Add(key) && speak)
+                    Say(actor, def.Event);
+                else if (!isCasting)
+                    casting.Remove(key);
+            }
+
+            foreach (var statusId in ids)
+            {
+                var has = actor.Obj.StatusList.Any(s => s.StatusId == statusId && s.SourceId == actor.EntityId);
+                if (has && selfSeen.Add((actor.EntityId, statusId)) && speak)
+                    Say(actor, def.Event);
+                else if (!has)
+                    selfSeen.Remove((actor.EntityId, statusId));
+            }
         }
     }
 
@@ -328,9 +359,11 @@ public sealed class EventWatcher : IDisposable
         lastHp.Clear();
         lowHpSince.Clear();
         raisesSeen.Clear();
-        kardionHolder.Clear();
-        bigHealsSeen.Clear();
-        castingBigHeal.Clear();
+        partnerHolder.Clear();
+        givenSeen.Clear();
+        selfSeen.Clear();
+        casting.Clear();
+        baselined.Clear();
         wasBigPull = false;
     }
 
@@ -346,13 +379,13 @@ public sealed class EventWatcher : IDisposable
 
     private static HashSet<uint> StatusIdsNamed(params string[] names) =>
         Plugin.DataManager.GetExcelSheet<Status>()
-              .Where(r => names.Contains(r.Name.ExtractText()))
+              .Where(r => names.Contains(r.Name.ExtractText(), StringComparer.OrdinalIgnoreCase))
               .Select(r => r.RowId)
               .ToHashSet();
 
     private static HashSet<uint> ActionIdsNamed(params string[] names) =>
         Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()
-              .Where(r => r.IsPlayerAction && names.Contains(r.Name.ExtractText()))
+              .Where(r => r.IsPlayerAction && names.Contains(r.Name.ExtractText(), StringComparer.OrdinalIgnoreCase))
               .Select(r => r.RowId)
               .ToHashSet();
 }

@@ -6,13 +6,19 @@ namespace OuterVoice;
 /// <summary>The events the plugin can detect, with default timing. Packs may override timing.</summary>
 public static class KnownEvents
 {
-    public record Info(string Name, string Label, int Priority, int CooldownSeconds, string Trigger, string? OnlyJob = null);
+    public record Info(string Name, string Label, int Priority, int CooldownSeconds, string Trigger)
+    {
+        /// <summary>Jobs this event exists for, or null if every job has it.</summary>
+        public string[]? Jobs => JobTriggers.JobsFor(Name);
+
+        public bool AppliesTo(string job) =>
+            Jobs == null || job == VoicePack.SharedJob || Jobs.Contains(job);
+    }
 
     public static readonly IReadOnlyList<Info> All =
     [
+        // Every job
         new("duty_start", "Duty start", 2, 0, "A duty commences."),
-        new("kardia_swap", "Kardia swap", 1, 120, "Your Kardion moves from one party member to another.", "SGE"),
-        new("big_heal", "Big heal", 2, 60, "You use one of your job's big party heals or mitigations."),
         new("clutch_save", "Clutch save", 4, 45, "Someone drops under 15% HP and is back above 50% within 3 seconds."),
         new("tank_death", "Tank death", 4, 30, "A tank in your party dies."),
         new("raise", "Raise", 3, 30, "Someone gets a Raise from you."),
@@ -21,6 +27,17 @@ public static class KnownEvents
         new("big_pull", "Big pull", 1, 180, "5+ enemies in combat within 30 yalms."),
         new("duty_complete", "Duty complete", 3, 0, "Duty cleared with at least one death."),
         new("duty_complete_clean", "Clean clear", 3, 0, "Duty cleared with no deaths."),
+
+        // Job-specific (which jobs have them is defined in JobTriggers)
+        new("burst", "Burst window", 2, 100, "You pop your big damage or raid buff."),
+        new("big_heal", "Big heal", 2, 60, "You use one of your big party heals or mitigations."),
+        new("stance_on", "Tank stance", 1, 300, "You turn on your tank stance."),
+        new("invuln", "Invulnerability", 4, 60, "You use your invulnerability (Hallowed Ground, Holmgang, Living Dead, Superbolide)."),
+        new("kardia_swap", "Kardia swap", 1, 120, "Your Kardion moves from one party member to another."),
+        new("card_play", "Card play", 1, 60, "You play a card on a party member."),
+        new("dance_partner", "Dance partner", 1, 120, "Your Dance Partner moves from one party member to another."),
+        new("song", "Song", 1, 100, "You start a new song."),
+        new("enshroud", "Enshroud", 1, 90, "You enter Enshroud."),
     ];
 
     public static Info? Get(string name) => All.FirstOrDefault(e => e.Name == name);

@@ -52,11 +52,11 @@ Friends' voices play when they're in your party.
 
 ## Events
 
+**Every job**
+
 | Event | When it fires |
 |---|---|
 | Duty start | A duty commences |
-| Kardia swap (SGE) | Your Kardion moves to another party member |
-| Big heal | SGE: Pneuma, Kerachole, Holos, Panhaima. WHM, SCH, AST: starter triggers |
 | Clutch save | Someone drops under 15% HP and is back above 50% within 3 seconds |
 | Tank death | A tank in the party dies |
 | Raise | Someone gets a Raise from you |
@@ -64,6 +64,23 @@ Friends' voices play when they're in your party.
 | Wipe | The party wipes |
 | Big pull | 5+ enemies in combat within 30 yalms |
 | Duty complete / Clean clear | Duty cleared (clean = no deaths) |
+
+**Job-specific**
+
+| Job | Events |
+|---|---|
+| PLD, WAR, DRK, GNB | Tank stance on, Invulnerability (Hallowed Ground, Holmgang, Living Dead, Superbolide), Burst window |
+| WHM | Big heal (Temperance, Liturgy of the Bell), Burst (Presence of Mind) |
+| SCH | Big heal (Seraphism), Burst (Dissipation) |
+| AST | Big heal (Neutral Sect, Macrocosmos), Burst (Divination), Card play |
+| SGE | Big heal (Pneuma, Kerachole, Holos, Panhaima), Kardia swap |
+| DNC | Burst (Technical Finish, Devilment), Dance partner swap |
+| BRD | Burst (Battle Voice, Radiant Finale), New song |
+| RPR | Burst (Arcane Circle), Enshroud |
+| MNK, DRG, NIN, SAM, VPR, MCH, BLM, SMN, RDM, PCT | Burst window (each job's own big buff) |
+
+The Lines tab only shows the events that apply to the job you're editing. A stance or buff that's
+already on when you zone in doesn't trigger a line.
 
 Skill names are looked up from the game in English, so this currently assumes an English client.
 
