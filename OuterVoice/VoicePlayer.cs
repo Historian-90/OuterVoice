@@ -27,7 +27,9 @@ public sealed class VoicePlayer : IDisposable
     public int CurrentPriority => IsPlaying ? currentPriority : 0;
 
     /// <summary>Plays a clip (replacing anything playing). Returns its length, or zero if it failed.</summary>
-    public TimeSpan Play(string path, int volume, int priority)
+    /// <param name="maxLength">Refuse clips longer than this (friends' packs), or null for no limit.</param>
+    /// <param name="limitLoudness">Run the clip through a peak limiter.</param>
+    public TimeSpan Play(string path, int volume, int priority, TimeSpan? maxLength = null, bool limitLoudness = false)
     {
         lock (gate)
         {
@@ -35,8 +37,18 @@ public sealed class VoicePlayer : IDisposable
             try
             {
                 reader = new AudioFileReader(path) { Volume = Math.Clamp(volume, 0, 100) / 100f };
+                if (maxLength.HasValue && reader.TotalTime > maxLength.Value)
+                {
+                    Plugin.Log.Info($"Skipped a {reader.TotalTime.TotalSeconds:0}s clip (limit {maxLength.Value.TotalSeconds:0}s): {path}");
+                    StopInternal();
+                    return TimeSpan.Zero;
+                }
+
                 output = new WaveOutEvent();
-                output.Init(reader);
+                ISampleProvider samples = reader;
+                if (limitLoudness)
+                    samples = new LoudnessLimiter(samples);
+                output.Init(samples);
                 output.Play();
                 currentPriority = priority;
                 return reader.TotalTime;

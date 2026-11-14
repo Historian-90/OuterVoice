@@ -31,6 +31,9 @@ public class Configuration : IPluginConfiguration
     /// <summary>Scale (and mute) voices with the game's Master and Voice volume settings.</summary>
     public bool FollowGameVolume { get; set; } = true;
 
+    /// <summary>Run friends' clips through a limiter so nothing is ear-blastingly loud.</summary>
+    public bool LimitFriendLoudness { get; set; } = true;
+
     /// <summary>Move the speaking character's mouth while their line plays.</summary>
     public bool LipSync { get; set; } = true;
 
@@ -66,6 +69,15 @@ public class Configuration : IPluginConfiguration
             Friends[characterId] = prefs = new FriendPrefs();
         return prefs;
     }
+
+    /// <summary>Folder inside Dropbox where your pack zip is published.</summary>
+    public string PublishFolder { get; set; } = string.Empty;
+
+    /// <summary>Re-publish automatically every time you click Save.</summary>
+    public bool PublishOnSave { get; set; } = true;
+
+    /// <summary>Friends' packs you follow through their Dropbox links.</summary>
+    public List<Sync.Subscription> Subscriptions { get; set; } = new();
 
     /// <summary>Lines tab: only show events that already have lines.</summary>
     public bool LinesHideEmpty { get; set; }

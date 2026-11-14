@@ -24,6 +24,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IToastGui ToastGui { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IGameConfig GameConfig { get; private set; } = null!;
+    [PluginService] internal static IClientState ClientState { get; private set; } = null!;
 
     private const string Command = "/outervoice";
     private const string ShortCommand = "/ov";
@@ -33,6 +34,8 @@ public sealed class Plugin : IDalamudPlugin
     public Configuration Configuration { get; }
     public VoicePlayer Player { get; }
     public LipSync Lips { get; }
+    public Sync.Publisher Publisher { get; }
+    public Sync.SubscriptionManager Subscriptions { get; private set; } = null!;
     public Speaker Speaker { get; }
     public string? PackError { get; private set; }
 
@@ -55,9 +58,11 @@ public sealed class Plugin : IDalamudPlugin
 
         Player = new VoicePlayer();
         Lips = new LipSync();
+        Publisher = new Sync.Publisher(this);
         Speaker = new Speaker(this);
         ReloadPack();
         PackSharing.LoadFriends(Speaker);
+        Subscriptions = new Sync.SubscriptionManager(this);
 
         watcher = new EventWatcher(Speaker);
 
@@ -86,6 +91,7 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
 
         watcher.Dispose();
+        Subscriptions.Dispose();
         Player.Dispose();
         Lips.Dispose();
     }
@@ -143,6 +149,8 @@ public sealed class Plugin : IDalamudPlugin
         {
             Speaker.Pack.Save();
             PackDirty = false;
+            if (Configuration.PublishOnSave && !string.IsNullOrWhiteSpace(Configuration.PublishFolder))
+                Publisher.Publish();
             return true;
         }
         catch (Exception ex)

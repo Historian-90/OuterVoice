@@ -12,6 +12,7 @@ public sealed partial class ConfigWindow
     private string? shareStatus;
     private bool shareStatusIsError;
     private bool exporting;
+    private string subscribeLink = string.Empty;
 
     // ---- Export (drawn at the bottom of the Voice Pack tab) -----------------------------
 
@@ -45,6 +46,79 @@ public sealed partial class ConfigWindow
         HelpMarker("Makes one .zip with your lines and recordings. Send it to friends; they import it on their Friends tab.");
 
         DrawShareStatus();
+        DrawPublish(pack);
+    }
+
+    // ---- Publish to Dropbox --------------------------------------------------------------------
+
+    private void DrawPublish(VoicePack pack)
+    {
+        var cfg = plugin.Configuration;
+        Section("Share through Dropbox");
+
+        ImGui.PushTextWrapPos();
+        ImGui.TextColored(Muted,
+            "Pick a folder inside your Dropbox folder. The plugin keeps your pack's zip there, updated every time " +
+            "you save. Share that zip's link with friends once; they subscribe on their Friends tab and get your " +
+            "updates automatically.");
+        ImGui.PopTextWrapPos();
+
+        var folder = string.IsNullOrWhiteSpace(cfg.PublishFolder) ? "(no folder chosen)" : cfg.PublishFolder;
+        ImGui.TextUnformatted(folder);
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Browse...##publish"))
+        {
+            plugin.FileDialogs.OpenFolderDialog("Choose a folder inside Dropbox", (ok, path) =>
+            {
+                if (!ok) return;
+                cfg.PublishFolder = path;
+                cfg.Save();
+            }, Directory.Exists(cfg.PublishFolder) ? cfg.PublishFolder : null, false);
+        }
+
+        if (string.IsNullOrWhiteSpace(cfg.PublishFolder))
+            return;
+
+        if (!cfg.PublishFolder.Contains("Dropbox", StringComparison.OrdinalIgnoreCase))
+            ImGui.TextColored(Warn, "This folder doesn't look like it's inside Dropbox. Friends can only subscribe to a Dropbox link.");
+
+        var onSave = cfg.PublishOnSave;
+        if (ImGui.Checkbox("Publish automatically when I save", ref onSave))
+        {
+            cfg.PublishOnSave = onSave;
+            cfg.Save();
+        }
+
+        ImGui.SameLine();
+        if (plugin.Publisher.Running) ImGui.BeginDisabled();
+        if (ImGui.Button("Publish now"))
+        {
+            if (plugin.PackDirty) plugin.SavePack(); // saving also publishes when auto-publish is on
+            if (!plugin.Publisher.Running) plugin.Publisher.Publish();
+        }
+        if (plugin.Publisher.Running) ImGui.EndDisabled();
+
+        ImGui.SameLine();
+        if (ImGui.Button("Open folder"))
+        {
+            try { System.Diagnostics.Process.Start("explorer.exe", $"\"{cfg.PublishFolder}\""); }
+            catch (Exception ex) { Plugin.Log.Warning(ex, "Couldn't open folder"); }
+        }
+
+        if (plugin.Publisher.Status.Length > 0)
+            ImGui.TextColored(plugin.Publisher.StatusIsError ? Bad : Good, plugin.Publisher.Status);
+
+        if (plugin.Publisher.TargetPath(pack) is { } target)
+        {
+            ImGui.TextColored(Muted, $"File: {Path.GetFileName(target)}");
+            InfoMarker("To share it:\n" +
+                       "1. In Dropbox (app or website), find this file. Share the FILE, not the folder.\n" +
+                       "2. Share -> Copy link (anyone with the link can view).\n" +
+                       "3. Send the link to friends once. The file name never changes, so the link keeps working.\n\n" +
+                       "Privacy: anyone with the link can download your pack, and Dropbox may show your account\n" +
+                       "name to people who open it in a browser. Consider a Dropbox account under your RP name.\n" +
+                       "You can turn the link off in Dropbox at any time.");
+        }
     }
 
     private void Export(VoicePack pack, string path, bool compress)
@@ -100,22 +174,68 @@ public sealed partial class ConfigWindow
             });
         }
 
+        var limit = cfg.LimitFriendLoudness;
+        if (ImGui.Checkbox("Tame loud clips", ref limit))
+        {
+            cfg.LimitFriendLoudness = limit;
+            cfg.Save();
+        }
+        HelpMarker("Runs friends' clips through a limiter so nothing is ear-blastingly loud. Friends' clips over 30 seconds are always skipped.");
+
+        // Subscribe to a Dropbox link
+        ImGui.SetNextItemWidth(320);
+        ImGui.InputTextWithHint("##sublink", "Paste a friend's Dropbox link...", ref subscribeLink, 512);
+        ImGui.SameLine();
+        if (ImGui.Button("Subscribe") && subscribeLink.Trim().Length > 0)
+        {
+            try
+            {
+                plugin.Subscriptions.Add(subscribeLink);
+                subscribeLink = string.Empty;
+                SetStatus("Subscribed. Downloading their pack...", false);
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ex.Message, true);
+            }
+        }
+        InfoMarker("Your friend shares their pack's zip from Dropbox (Share -> Copy link) and sends you the link.\n" +
+                   "The plugin checks it when you log in and every 30 minutes, and only downloads when it changed.\n" +
+                   "Only Dropbox links are accepted, downloads must be zip packs, and a link can never switch to\n" +
+                   "voicing a different character than the one it first delivered.");
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Check now"))
+            plugin.Subscriptions.CheckAll();
+
         DrawShareStatus();
 
         var friends = plugin.Speaker.Friends.Values.OrderBy(p => p.Character, StringComparer.OrdinalIgnoreCase).ToList();
-        if (friends.Count == 0)
+        var waiting = cfg.Subscriptions.Where(s => s.Character.Length == 0).ToList();
+        if (friends.Count == 0 && waiting.Count == 0)
         {
             ImGui.Spacing();
-            ImGui.TextColored(Muted, "No friends' packs yet. Ask a friend to use \"Export pack for friends\" and send you the .zip.");
+            ImGui.TextColored(Muted, "No friends' packs yet. Subscribe to a friend's Dropbox link, or import a .zip they sent you.");
             return;
         }
 
+        // Links that haven't delivered a pack yet
+        foreach (var sub in waiting)
+        {
+            ImGui.PushID(sub.Link);
+            ImGui.TextColored(sub.StatusIsError ? Bad : Muted, $"Pending link: {sub.Status}");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Remove"))
+                plugin.Subscriptions.Remove(sub);
+            ImGui.PopID();
+        }
+
         ImGui.Spacing();
-        if (!ImGui.BeginTable("friends", 5, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
+        if (!ImGui.BeginTable("friends", 6, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
             return;
 
         ImGui.TableSetupColumn("Character");
         ImGui.TableSetupColumn("Jobs");
+        ImGui.TableSetupColumn("Updates");
         ImGui.TableSetupColumn("Mute", ImGuiTableColumnFlags.WidthFixed, 40);
         ImGui.TableSetupColumn("Volume", ImGuiTableColumnFlags.WidthFixed, 110);
         ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 60);
@@ -138,6 +258,36 @@ public sealed partial class ConfigWindow
 
             ImGui.TableNextColumn();
             ImGui.TextUnformatted(string.Join(", ", pack.Jobs.Where(j => j.Value.Count > 0).Select(j => j.Key).OrderBy(j => j)));
+
+            ImGui.TableNextColumn();
+            var sub = cfg.Subscriptions.FirstOrDefault(s => string.Equals(s.Character, pack.Character, StringComparison.OrdinalIgnoreCase));
+            if (sub == null)
+            {
+                ImGui.TextColored(Muted, "Imported file");
+            }
+            else
+            {
+                var auto = sub.AutoUpdate;
+                if (ImGui.Checkbox("Auto##auto", ref auto))
+                {
+                    sub.AutoUpdate = auto;
+                    cfg.Save();
+                }
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("On: updates install automatically.\nOff (ask first): you'll see an Update button and choose when.");
+                ImGui.SameLine();
+                if (sub.UpdateAvailable)
+                {
+                    if (ImGui.SmallButton("Update"))
+                        _ = plugin.Subscriptions.ApplyPendingAsync(sub);
+                }
+                else
+                {
+                    ImGui.TextColored(sub.StatusIsError ? Bad : Muted, sub.Status);
+                    if (ImGui.IsItemHovered() && sub.LastChecked != default)
+                        ImGui.SetTooltip($"Last checked {sub.LastChecked:g}");
+                }
+            }
 
             ImGui.TableNextColumn();
             var muted = prefs.Muted;
@@ -163,7 +313,7 @@ public sealed partial class ConfigWindow
                 toRemove = pack.Character;
             if (!ctrl) ImGui.EndDisabled();
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                ImGui.SetTooltip("Hold Ctrl to remove this pack.");
+                ImGui.SetTooltip("Hold Ctrl to remove this pack (and unsubscribe from its link).");
 
             ImGui.PopID();
         }
@@ -173,6 +323,8 @@ public sealed partial class ConfigWindow
         if (toRemove != null)
         {
             plugin.Player.Stop();
+            foreach (var sub in cfg.Subscriptions.Where(s => string.Equals(s.Character, toRemove, StringComparison.OrdinalIgnoreCase)).ToList())
+                plugin.Subscriptions.Remove(sub); // unsubscribing removes the pack too
             PackSharing.RemoveFriend(plugin.Speaker, toRemove);
             SetStatus($"Removed {toRemove}'s pack.", false);
         }

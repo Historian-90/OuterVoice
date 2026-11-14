@@ -15,7 +15,9 @@ namespace OuterVoice;
 /// </summary>
 public static class PackSharing
 {
-    private const long MaxZipBytes = 200L * 1024 * 1024;
+    public const long MaxZipBytes = 200L * 1024 * 1024;
+    private const long MaxUnpackedBytes = 400L * 1024 * 1024;   // zip-bomb guard
+    private const long MaxJsonBytes = 2L * 1024 * 1024;
     private const int MaxEntries = 5000;
     private const int ShareBitrate = 48000; // mono speech at 48 kbps is clear and ~3x smaller
     private static readonly string[] AllowedExtensions = [".json", ".mp3", ".wav"];
@@ -58,7 +60,11 @@ public static class PackSharing
     // ---- Import -------------------------------------------------------------------------------
 
     /// <summary>Installs a friend's pack from a .zip. Returns the character it voices.</summary>
-    public static string Import(string zipPath, Speaker speaker)
+    /// <param name="expectedCharacter">
+    /// For subscriptions: the character this link has always been. A pack that suddenly claims a
+    /// different character is refused (impersonation guard). Null = accept any.
+    /// </param>
+    public static string Import(string zipPath, Speaker speaker, string? expectedCharacter = null)
     {
         var info = new FileInfo(zipPath);
         if (!info.Exists) throw new FileNotFoundException("That file doesn't exist.");
@@ -72,6 +78,17 @@ public static class PackSharing
                                                        !AllowedExtensions.Contains(Path.GetExtension(e.Name).ToLowerInvariant()));
             if (bad != null)
                 throw new InvalidDataException($"That pack contains a file type that isn't allowed: {bad.Name}");
+
+            // Zip bombs: a small zip that unpacks into gigabytes.
+            long unpacked = 0;
+            foreach (var e in zip.Entries)
+            {
+                unpacked += e.Length;
+                if (unpacked > MaxUnpackedBytes)
+                    throw new InvalidDataException("That pack unpacks to more than 400 MB, so it was refused.");
+                if (e.Name.Equals(VoicePack.FileName, StringComparison.OrdinalIgnoreCase) && e.Length > MaxJsonBytes)
+                    throw new InvalidDataException("That pack's voicepack.json is suspiciously large, so it was refused.");
+            }
         }
 
         var temp = Path.Combine(Plugin.PluginInterface.ConfigDirectory.FullName, "import-temp");
@@ -93,6 +110,10 @@ public static class PackSharing
                 throw new InvalidDataException("That pack doesn't say which character it belongs to.");
             if (speaker.Pack != null && string.Equals(pack.Character, speaker.Pack.Character, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("That's your own character's pack. Load it from the Voice Pack tab instead.");
+            if (!string.IsNullOrEmpty(expectedCharacter) &&
+                !string.Equals(pack.Character, expectedCharacter, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException(
+                    $"This link used to be {expectedCharacter}'s pack but now claims to be {pack.Character}'s, so the update was refused.");
 
             var dest = Path.Combine(FriendsRoot, SafeFolderName(pack.Character));
             if (Directory.Exists(dest)) Directory.Delete(dest, true);

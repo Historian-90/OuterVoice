@@ -105,12 +105,27 @@ public class VoicePack
         {
             foreach (var line in lines)
             {
+                line.Text = CleanText(line.Text);
                 line.Job = job.ToUpperInvariant();
                 line.AudioPath = ResolveAudio(folder, line);
             }
         }
 
         return pack;
+    }
+
+    /// <summary>
+    /// Removes control characters. The game's text system uses invisible control codes, and a
+    /// crafted line could try to smuggle them into chat or the pop-up.
+    /// </summary>
+    public static string CleanText(string? text)
+    {
+        // Line breaks and tabs become spaces; every other control character is dropped.
+        var chars = (text ?? string.Empty)
+                    .Select(c => c is '\n' or '\r' or '\t' ? ' ' : c)
+                    .Where(c => !char.IsControl(c))
+                    .ToArray();
+        return System.Text.RegularExpressions.Regex.Replace(new string(chars), " {2,}", " ").Trim();
     }
 
     public bool HasJob(string job) => Jobs.TryGetValue(job, out var lines) && lines.Count > 0;

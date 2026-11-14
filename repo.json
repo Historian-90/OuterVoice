@@ -5,7 +5,7 @@
     "InternalName": "OuterVoice",
     "AssemblyVersion": "0.2.3.0",
     "Punchline": "Voiced lines for your character, and your friends', when things happen in duties.",
-    "Description": "Give your character a voice. Record lines for events like raises, deaths, Kardia swaps, wipes and clears, then share your voice pack with friends: when you're in a party together, each of you hears the other's character speak too.\n\nOnly one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play.",
+    "Description": "Give your character a voice. Record lines for events like raises, deaths, Kardia swaps, wipes and clears, then share your voice pack with friends: when you're in a party together, each of you hears the other's character speak too.\n\nOnly one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play. Optional: if you subscribe to a friend's Dropbox link, the plugin downloads their pack from Dropbox (and nothing else).",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/Historian-90/OuterVoice",
     "Tags": [

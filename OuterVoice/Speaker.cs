@@ -24,6 +24,9 @@ public sealed class Speaker
     private readonly Dictionary<string, string> lastLineByVoice = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> lastLineByTrigger = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Friends' clips longer than this are skipped.</summary>
+    public static readonly TimeSpan MaxFriendClip = TimeSpan.FromSeconds(30);
+
     public Speaker(Plugin plugin) => this.plugin = plugin;
 
     /// <summary>Your own pack (the one you edit).</summary>
@@ -128,13 +131,17 @@ public sealed class Speaker
         {
             var prefs = pack == Pack ? null : cfg.PrefsFor(pack.Character);
             var volume = cfg.Volume * (prefs?.Volume ?? 100) / 100 * GameVolumePercent() / 100;
-            var length = plugin.Player.Play(line.AudioPath, volume, def.Priority);
+            // Friends' clips: capped length, optional loudness limiter.
+            var isFriend = pack != Pack;
+            var length = plugin.Player.Play(line.AudioPath, volume, def.Priority,
+                                            isFriend ? MaxFriendClip : null,
+                                            isFriend && cfg.LimitFriendLoudness);
             if (cfg.LipSync && length > TimeSpan.Zero && volume > 0)
                 plugin.Lips.Start(speakerEntityId, length);
         }
 
         if (!string.IsNullOrWhiteSpace(line.Text) && (line.AudioPath != null || cfg.TextWithoutAudio || force))
-            ShowText(DisplayName(pack), line.Text.Trim());
+            ShowText(VoicePack.CleanText(DisplayName(pack)), VoicePack.CleanText(line.Text));
 
         return line;
     }
