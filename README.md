@@ -81,7 +81,9 @@ Friends' voices play when they're in your party.
 | RPR | Burst (Arcane Circle), Enshroud |
 | MNK, DRG, NIN, SAM, VPR, MCH, BLM, SMN, RDM, PCT | Burst window (each job's own big buff) |
 
-The Lines tab only shows the events that apply to the job you're editing. A stance or buff that's
+The Lines tab only shows the events that apply to the job you're editing; hover the (i) next to an
+event to see exactly which buffs trigger it. For **Kardia** and **Dance partner**, tick a line's
+**Initial** box to make it play when you first choose a partner; unticked lines play when you switch. A stance or buff that's
 already on when you zone in doesn't trigger a line.
 
 Skill names are looked up from the game in English, so this currently assumes an English client.

@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Components;
 
 namespace OuterVoice.Windows;
 
@@ -242,11 +244,14 @@ public sealed partial class ConfigWindow
 
             ImGui.Indent();
             ImGui.TextColored(Muted, ev.Trigger);
+            var triggerInfo = JobTriggers.Describe(ev.Name, editJob);
+            if (triggerInfo.Length > 0)
+                InfoMarker(triggerInfo);
 
             Line? toDelete = null;
             foreach (var line in evLines)
             {
-                if (DrawLine(pack, line))
+                if (DrawLine(pack, line, ev))
                     toDelete = line;
             }
 
@@ -277,7 +282,7 @@ public sealed partial class ConfigWindow
     }
 
     /// <summary>Draws one line's editor. Returns true if the user asked to delete it.</summary>
-    private bool DrawLine(VoicePack pack, Line line)
+    private bool DrawLine(VoicePack pack, Line line, KnownEvents.Info ev)
     {
         var delete = false;
         ImGui.PushID(line.Job + line.Id);
@@ -316,6 +321,21 @@ public sealed partial class ConfigWindow
             Changed();
         }
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Higher weight = picked more often.");
+
+        // Partner events: is this line for first choosing a partner, or for switching?
+        if (ev.SupportsInitial)
+        {
+            ImGui.SameLine();
+            var initial = line.Initial;
+            if (ImGui.Checkbox("Initial##initial", ref initial))
+            {
+                line.Initial = initial;
+                Changed();
+            }
+            InfoMarker("Checked: plays when you first choose a partner (nobody had it before).\n" +
+                       "Unchecked: plays when you switch your partner to someone else.\n\n" +
+                       "With no Initial lines, choosing a first partner stays quiet.");
+        }
 
         // Audio
         ImGui.SameLine();
@@ -369,6 +389,13 @@ public sealed partial class ConfigWindow
     }
 
     // ---- Helpers ---------------------------------------------------------------------
+
+    /// <summary>A small (i) icon after the previous item that shows text on hover.</summary>
+    private static void InfoMarker(string text)
+    {
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker(text, FontAwesomeIcon.InfoCircle, null);
+    }
 
     private static IEnumerable<KeyValuePair<string, List<Line>>> OrderedJobs(VoicePack pack) =>
         pack.Jobs.OrderBy(j => j.Key == VoicePack.SharedJob).ThenBy(j => j.Key);

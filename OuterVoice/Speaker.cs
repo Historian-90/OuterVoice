@@ -55,7 +55,8 @@ public sealed class Speaker
     /// Try to say something. <paramref name="seed"/> makes every player's plugin pick the same line.
     /// Returns the line spoken, if any.
     /// </summary>
-    public Line? Trigger(VoicePack pack, string eventName, string job, long seed, bool force = false)
+    /// <param name="initial">For partner events: true = first pick, false = swap, null = any line.</param>
+    public Line? Trigger(VoicePack pack, string eventName, string job, long seed, bool force = false, bool? initial = null)
     {
         var cfg = plugin.Configuration;
         if (!force && !cfg.Enabled)
@@ -63,7 +64,7 @@ public sealed class Speaker
 
         var def = pack.GetEvent(eventName);
         var now = DateTime.UtcNow;
-        var cooldownKey = $"{pack.Character}|{eventName}";
+        var cooldownKey = $"{pack.Character}|{eventName}|{initial}";
 
         if (!force)
         {
@@ -82,6 +83,8 @@ public sealed class Speaker
 
         var voiceKey = pack.Character;
         var options = pack.LinesFor(job, eventName);
+        if (initial.HasValue)
+            options = options.Where(l => l.Initial == initial.Value).ToList();
         if (!force && lastLineByVoice.TryGetValue(voiceKey, out var lastKey))
             options = options.Where(l => LineKey(l) != lastKey).ToList();
 

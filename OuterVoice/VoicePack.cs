@@ -23,6 +23,12 @@ public class Line
     public string Audio { get; set; } = string.Empty;
     public string Text { get; set; } = string.Empty;
 
+    /// <summary>
+    /// For partner events (Kardia, Dance Partner): true = plays when the partner is first chosen,
+    /// false = plays when the partner is swapped to someone else.
+    /// </summary>
+    public bool Initial { get; set; }
+
     /// <summary>Job this line belongs to ("SGE", "WHM", ... or "ALL"). Filled in on load.</summary>
     [JsonIgnore] public string Job { get; set; } = string.Empty;
 

@@ -13,6 +13,9 @@ public static class KnownEvents
 
         public bool AppliesTo(string job) =>
             Jobs == null || job == VoicePack.SharedJob || Jobs.Contains(job);
+
+        /// <summary>Partner events can have separate lines for first choosing a partner.</summary>
+        public bool SupportsInitial => JobTriggers.All.Any(t => t.Event == Name && t.Kind == TriggerKind.PartnerSwap);
     }
 
     public static readonly IReadOnlyList<Info> All =
@@ -33,9 +36,9 @@ public static class KnownEvents
         new("big_heal", "Big heal", 2, 60, "You use one of your big party heals or mitigations."),
         new("stance_on", "Tank stance", 1, 300, "You turn on your tank stance."),
         new("invuln", "Invulnerability", 4, 60, "You use your invulnerability (Hallowed Ground, Holmgang, Living Dead, Superbolide)."),
-        new("kardia_swap", "Kardia swap", 1, 120, "Your Kardion moves from one party member to another."),
+        new("kardia_swap", "Kardia", 1, 120, "You place Kardia on a party member, or move it to someone else."),
         new("card_play", "Card play", 1, 60, "You play a card on a party member."),
-        new("dance_partner", "Dance partner", 1, 120, "Your Dance Partner moves from one party member to another."),
+        new("dance_partner", "Dance partner", 1, 120, "You choose a Dance Partner, or switch to someone else."),
         new("song", "Song", 1, 100, "You start a new song."),
         new("enshroud", "Enshroud", 1, 90, "You enter Enshroud."),
     ];

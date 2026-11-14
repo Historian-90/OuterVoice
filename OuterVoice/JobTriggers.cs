@@ -82,6 +82,53 @@ public static class JobTriggers
         new("PCT", "burst", TriggerKind.SelfStatus, ["Starry Muse"]),
     ];
 
+    /// <summary>Hover text listing what triggers an event, for one job or (for ALL) every job.</summary>
+    public static string Describe(string eventName, string job)
+    {
+        var defs = All.Where(t => t.Event == eventName && (job == VoicePack.SharedJob || t.Job == job)).ToList();
+        if (defs.Count == 0)
+            return string.Empty;
+
+        if (job == VoicePack.SharedJob)
+        {
+            return "Watches for these, depending on the job you're playing:\n\n" +
+                   string.Join("\n", defs.GroupBy(d => d.Job).Select(g => $"{g.Key}: {string.Join(", ", g.SelectMany(Names))}"));
+        }
+
+        var lines = new List<string>();
+        foreach (var d in defs)
+        {
+            switch (d.Kind)
+            {
+                case TriggerKind.SelfStatus:
+                    lines.Add("Plays when one of these goes up on you:");
+                    lines.AddRange(d.Statuses.Select(n => "  \u2022 " + n));
+                    if (d.Casts is { Length: > 0 })
+                    {
+                        lines.Add("...or when you start casting:");
+                        lines.AddRange(d.Casts.Select(n => "  \u2022 " + n));
+                    }
+                    break;
+                case TriggerKind.PartnerSwap:
+                    lines.Add($"Watches your {string.Join(" / ", d.Statuses)} on party members.");
+                    lines.Add("Lines marked Initial play when you first choose a partner;");
+                    lines.Add("the others play when you switch to someone else.");
+                    break;
+                case TriggerKind.GiveStatus:
+                    lines.Add("Plays when you give a party member one of these:");
+                    lines.AddRange(d.Statuses.Select(n => "  \u2022 " + n));
+                    break;
+            }
+        }
+
+        lines.Add("");
+        lines.Add("A buff that's already up when you zone in doesn't count.");
+        return string.Join("\n", lines);
+    }
+
+    private static IEnumerable<string> Names(JobTrigger t) =>
+        t.Statuses.Concat((t.Casts ?? []).Select(c => c + " (cast)"));
+
     /// <summary>Jobs that have a trigger for this event (null = an event every job has).</summary>
     public static string[]? JobsFor(string eventName)
     {

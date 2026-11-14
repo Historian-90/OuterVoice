@@ -44,6 +44,7 @@ public sealed class EventWatcher : IDisposable
     private readonly Dictionary<uint, DateTime> lowHpSince = new();
     private readonly HashSet<(uint Caster, uint Target)> raisesSeen = new();
     private readonly Dictionary<(uint Caster, string Event), uint> partnerHolder = new();
+    private readonly HashSet<(uint Caster, string Event)> partnersSeen = new();
     private readonly HashSet<(uint Caster, uint Target, uint Status)> givenSeen = new();
     private readonly HashSet<(uint Caster, uint Status)> selfSeen = new();
     private readonly HashSet<(uint Caster, string Event)> casting = new();
@@ -130,6 +131,7 @@ public sealed class EventWatcher : IDisposable
         var members = Members(me).ToList();
         var byId = actors.ToDictionary(a => a.EntityId);
 
+        partnersSeen.Clear();
         foreach (var m in members)
         {
             if (m.MaxHp == 0) continue;
@@ -177,10 +179,17 @@ public sealed class EventWatcher : IDisposable
 
                     if (def.Kind == TriggerKind.PartnerSwap)
                     {
-                        // Partner moved from one party member to another (Kardia, Dance Partner).
+                        // Partner chosen for the first time, or moved to someone else (Kardia, Dance Partner).
                         var key = (caster.EntityId, def.Event);
-                        if (speak && partnerHolder.TryGetValue(key, out var holder) && holder != m.EntityId)
-                            Say(caster, def.Event);
+                        partnersSeen.Add(key);
+                        if (!partnerHolder.TryGetValue(key, out var holder))
+                        {
+                            if (speak) Say(caster, def.Event, initial: true);
+                        }
+                        else if (holder != m.EntityId && speak)
+                        {
+                            Say(caster, def.Event, initial: false);
+                        }
                         partnerHolder[key] = m.EntityId;
                     }
                     else if (def.Kind == TriggerKind.GiveStatus)
@@ -197,6 +206,10 @@ public sealed class EventWatcher : IDisposable
             givenSeen.RemoveWhere(g => g.Target == m.EntityId &&
                                        !m.Statuses.Any(s => s.StatusId == g.Status && s.SourceId == g.Caster));
         }
+
+        // A partner buff that's gone from everyone was dropped; the next one counts as a first pick.
+        foreach (var key in partnerHolder.Keys.Where(k => !partnersSeen.Contains(k)).ToList())
+            partnerHolder.Remove(key);
 
         foreach (var actor in actors)
         {
@@ -261,8 +274,8 @@ public sealed class EventWatcher : IDisposable
 
     // ---- Who speaks ---------------------------------------------------------------------
 
-    private void Say(Actor actor, string eventName) =>
-        speaker.Trigger(actor.Pack, eventName, actor.Job, Seed(actor.CharacterId, eventName));
+    private void Say(Actor actor, string eventName, bool? initial = null) =>
+        speaker.Trigger(actor.Pack, eventName, actor.Job, Seed(actor.CharacterId, eventName), initial: initial);
 
     /// <summary>
     /// Shared events get exactly one speaker. Every player's plugin sorts the same voiced party
