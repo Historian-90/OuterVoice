@@ -102,11 +102,11 @@ public static class JobTriggers
             {
                 case TriggerKind.SelfStatus:
                     lines.Add("Plays when one of these goes up on you:");
-                    lines.AddRange(d.Statuses.Select(n => "  \u2022 " + n));
+                    lines.AddRange(d.Statuses.Select(n => "  - " + n));
                     if (d.Casts is { Length: > 0 })
                     {
                         lines.Add("...or when you start casting:");
-                        lines.AddRange(d.Casts.Select(n => "  \u2022 " + n));
+                        lines.AddRange(d.Casts.Select(n => "  - " + n));
                     }
                     break;
                 case TriggerKind.PartnerSwap:
@@ -116,7 +116,7 @@ public static class JobTriggers
                     break;
                 case TriggerKind.GiveStatus:
                     lines.Add("Plays when you give a party member one of these:");
-                    lines.AddRange(d.Statuses.Select(n => "  \u2022 " + n));
+                    lines.AddRange(d.Statuses.Select(n => "  - " + n));
                     break;
             }
         }

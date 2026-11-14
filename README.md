@@ -104,6 +104,16 @@ On the **Custom Events** tab you can make your own triggers. A custom event play
 Write the lines for a custom event on the Lines tab (the ALL group works for every job). Custom
 events are saved in your voice pack, so friends who import it hear them too.
 
+Give events a **Category** (Emotes, RP, Moodles...) to group them, switch them **On/Off** without
+deleting them, and use **Edit lines ->** / **Edit trigger** to jump between an event and its lines.
+
+## Staying organized
+
+The Lines tab is split into **Every job**, **Job abilities** and **Custom events** (by category),
+and remembers which sections you've collapsed. Use the search box to find events or line text, and
+**Hide empty** to show only events that already have lines (add lines to the others with
+**+ Add lines to...**).
+
 ## Commands
 
 `/ov` is short for `/outervoice`. (The game already uses `/voice` to mute voices.)

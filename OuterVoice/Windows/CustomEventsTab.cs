@@ -18,6 +18,8 @@ public sealed partial class ConfigWindow
         "Moodle title, e.g. Caffeinated",
     ];
 
+    private string customSearch = string.Empty;
+
     private void DrawCustomEvents()
     {
         var pack = plugin.Speaker.Pack;
@@ -30,43 +32,110 @@ public sealed partial class ConfigWindow
         ImGui.PushTextWrapPos();
         ImGui.TextColored(Muted,
             "Make your own triggers. A custom event plays a line the moment ALL of its conditions are true at the " +
-            "same time. Write its lines on the Lines tab (the ALL group works for every job). Custom events are " +
-            "saved in your voice pack, so friends who import it hear them too.");
+            "same time. Custom events are saved in your voice pack, so friends who import it hear them too.");
         ImGui.PopTextWrapPos();
         ImGui.Spacing();
 
         if (ImGui.Button("+ New custom event"))
         {
-            pack.CustomEvents.Add(new CustomEvent { Conditions = { new CustomCondition() } });
+            var created = new CustomEvent { Conditions = { new CustomCondition() } };
+            pack.CustomEvents.Add(created);
+            focusCustomEvent = created.Id;
+            customSearch = string.Empty;
             Changed();
         }
 
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(220);
+        ImGui.InputTextWithHint("##customsearch", "Search name, category, conditions...", ref customSearch, 64);
+
+        var q = customSearch.Trim();
+        var shown = pack.CustomEvents
+            .Where(e => e.Id == focusCustomEvent || q.Length == 0 ||
+                        e.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        e.CategoryOrDefault.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                        e.Summary.Contains(q, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (pack.CustomEvents.Count > 0 && shown.Count == 0)
+            ImGui.TextColored(Muted, "Nothing matches your search.");
+
+        ImGui.BeginChild("##customlist", new Vector2(0, 0));
         CustomEvent? toDelete = null;
-        foreach (var ev in pack.CustomEvents)
+        foreach (var group in shown.GroupBy(e => e.CategoryOrDefault).OrderBy(g => g.Key == "Other").ThenBy(g => g.Key))
         {
-            ImGui.PushID(ev.Id);
-            var header = $"{(string.IsNullOrWhiteSpace(ev.Name) ? "(unnamed)" : ev.Name)}###hdr";
-            if (ImGui.CollapsingHeader(header, ImGuiTreeNodeFlags.DefaultOpen))
+            if (!SubSection($"custom:cat:{group.Key}", $"{group.Key}  ({group.Count()})"))
+                continue;
+
+            foreach (var ev in group.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
             {
-                ImGui.Indent();
-                if (DrawCustomEvent(pack, ev))
+                ImGui.PushID(ev.Id);
+                if (DrawCustomEventRow(pack, ev))
                     toDelete = ev;
-                ImGui.Unindent();
-                ImGui.Spacing();
+                ImGui.PopID();
             }
-            ImGui.PopID();
+
+            ImGui.TreePop();
         }
+        ImGui.EndChild();
 
         if (toDelete != null)
         {
             pack.CustomEvents.Remove(toDelete);
             Changed();
         }
+
+        focusCustomEvent = null;
+    }
+
+    /// <summary>One custom event as a compact collapsible row. Returns true if it should be deleted.</summary>
+    private bool DrawCustomEventRow(VoicePack pack, CustomEvent ev)
+    {
+        var lineCount = pack.Jobs.Values.SelectMany(l => l).Count(l => l.Event == ev.Id);
+        var name = string.IsNullOrWhiteSpace(ev.Name) ? "(unnamed)" : ev.Name;
+        var state = !ev.Enabled ? "  [off]" : !ev.IsUsable ? "  [incomplete]" : "";
+        var header = $"{name}{state}  ·  {ev.Summary}  ·  {lineCount} line{(lineCount == 1 ? "" : "s")}###row";
+
+        if (ev.Id == focusCustomEvent)
+        {
+            ImGui.SetNextItemOpen(true);
+            ImGui.SetScrollHereY();
+        }
+
+        if (!ev.Enabled) ImGui.PushStyleColor(ImGuiCol.Text, Muted);
+        var open = ImGui.CollapsingHeader(header);
+        if (!ev.Enabled) ImGui.PopStyleColor();
+        if (!open)
+            return false;
+
+        ImGui.Indent();
+        var delete = DrawCustomEvent(pack, ev);
+        ImGui.Unindent();
+        ImGui.Spacing();
+        return delete;
     }
 
     /// <summary>Draws one custom event's editor. Returns true if the user asked to delete it.</summary>
     private bool DrawCustomEvent(VoicePack pack, CustomEvent ev)
     {
+        var enabled = ev.Enabled;
+        if (ImGui.Checkbox("On", ref enabled))
+        {
+            ev.Enabled = enabled;
+            Changed();
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Switch off to park this event without deleting it.");
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Edit lines ->"))
+        {
+            // Custom lines usually live in ALL; fall back to whatever job is open.
+            if (pack.Jobs.ContainsKey(VoicePack.SharedJob)) editJob = VoicePack.SharedJob;
+            pendingTab = "Lines";
+            focusEvent = ev.Id;
+            lineSearch = string.Empty;
+        }
+
         var name = ev.Name;
         ImGui.SetNextItemWidth(220);
         if (ImGui.InputText("Name", ref name, 64))
@@ -74,6 +143,35 @@ public sealed partial class ConfigWindow
             ev.Name = name;
             Changed();
         }
+
+        var category = ev.Category;
+        ImGui.SetNextItemWidth(190);
+        if (ImGui.InputTextWithHint("##category", "Other", ref category, 32))
+        {
+            ev.Category = category;
+            Changed();
+        }
+        ImGui.SameLine(0, 2);
+        var existing = pack.CustomEvents.Select(c => c.Category.Trim()).Where(c => c.Length > 0)
+                           .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c).ToList();
+        ImGui.SetNextItemWidth(26);
+        if (ImGui.BeginCombo("##catpick", string.Empty, ImGuiComboFlags.NoPreview))
+        {
+            if (existing.Count == 0)
+                ImGui.TextColored(Muted, "No categories yet: type one.");
+            foreach (var c in existing)
+            {
+                if (ImGui.Selectable(c, string.Equals(c, ev.Category, StringComparison.OrdinalIgnoreCase)))
+                {
+                    ev.Category = c;
+                    Changed();
+                }
+            }
+            ImGui.EndCombo();
+        }
+        ImGui.SameLine();
+        ImGui.TextUnformatted("Category");
+        HelpMarker("Groups events on this tab and the Lines tab, e.g. Emotes, RP, Moodles. Blank = Other.");
 
         ImGui.TextUnformatted("When all of these are true:");
         InfoMarker("Casting: you're casting an action with a cast bar (instant actions can't be seen).\n" +

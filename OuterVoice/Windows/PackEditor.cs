@@ -232,61 +232,203 @@ public sealed partial class ConfigWindow
             return;
         }
 
+        DrawLinesToolbar(pack, jobLines);
+
         ImGui.Spacing();
         ImGui.BeginChild("##lines", new Vector2(0, 0));
 
-        foreach (var ev in pack.AllEvents())
+        var events = pack.AllEvents().Where(e => e.AppliesTo(editJob)).ToList();
+        var q = lineSearch.Trim();
+
+        bool Visible(KnownEvents.Info ev)
         {
-            if (!ev.AppliesTo(editJob))
-                continue;
-
             var evLines = jobLines.Where(l => l.Event == ev.Name).ToList();
-            var rec = evLines.Count(l => l.AudioPath != null);
-            var header = $"{ev.Label}  ({rec}/{evLines.Count} recorded)###ev_{ev.Name}";
-
-            if (!ImGui.CollapsingHeader(header))
-            {
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip(ev.Trigger);
-                continue;
-            }
-
-            ImGui.Indent();
-            ImGui.TextColored(Muted, ev.Trigger);
-            var triggerInfo = JobTriggers.Describe(ev.Name, editJob);
-            if (triggerInfo.Length > 0)
-                InfoMarker(triggerInfo);
-
-            Line? toDelete = null;
-            foreach (var line in evLines)
-            {
-                if (DrawLine(pack, line, ev))
-                    toDelete = line;
-            }
-
-            if (toDelete != null)
-            {
-                jobLines.Remove(toDelete);
-                Changed();
-            }
-
-            if (ImGui.Button($"+ Add line##add_{ev.Name}"))
-            {
-                jobLines.Add(new Line
-                {
-                    Id = pack.NextLineId(editJob, ev.Name),
-                    Event = ev.Name,
-                    Mood = KnownEvents.Moods[0],
-                    Weight = 1,
-                    Job = editJob,
-                });
-                Changed();
-            }
-
-            ImGui.Unindent();
-            ImGui.Spacing();
+            if (ev.Name == focusEvent) return true;
+            if (q.Length > 0)
+                return ev.Label.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                       evLines.Any(l => l.Text.Contains(q, StringComparison.OrdinalIgnoreCase));
+            return !plugin.Configuration.LinesHideEmpty || evLines.Count > 0;
         }
 
+        // Every job
+        var common = events.Where(e => !e.IsCustom && e.Jobs == null && Visible(e)).ToList();
+        if (common.Count > 0 && Section("lines:common", "EVERY JOB", true))
+            foreach (var ev in common) DrawEventLines(pack, jobLines, ev);
+
+        // Job abilities (collapsed by default on ALL, where they're rarely needed)
+        var jobEvents = events.Where(e => !e.IsCustom && e.Jobs != null && Visible(e)).ToList();
+        if (jobEvents.Count > 0 && Section($"lines:job:{(editJob == VoicePack.SharedJob ? "all" : "job")}",
+                                           "JOB ABILITIES", editJob != VoicePack.SharedJob))
+            foreach (var ev in jobEvents) DrawEventLines(pack, jobLines, ev);
+
+        // Custom events, grouped by category
+        var custom = events.Where(e => e.IsCustom && Visible(e)).ToList();
+        if (custom.Count > 0 && Section("lines:custom", "CUSTOM EVENTS", true))
+        {
+            foreach (var group in custom.GroupBy(e => e.Category ?? "Other").OrderBy(g => g.Key == "Other").ThenBy(g => g.Key))
+            {
+                if (!SubSection($"lines:cat:{group.Key}", group.Key)) continue;
+                foreach (var ev in group) DrawEventLines(pack, jobLines, ev);
+                ImGui.TreePop();
+            }
+        }
+
+        if (common.Count + jobEvents.Count + custom.Count == 0)
+            ImGui.TextColored(Muted, q.Length > 0 ? "Nothing matches your search." : "No events with lines yet. Use \"+ Add lines to...\" above.");
+
         ImGui.EndChild();
+        focusEvent = null;
+    }
+
+    private string lineSearch = string.Empty;
+    private string? focusEvent;        // event to scroll to / expand on the Lines tab
+    private string? focusCustomEvent;  // custom event to expand on the Custom Events tab
+    private string? pendingTab;
+
+    private ImGuiTabItemFlags TabFlags(string tab) =>
+        pendingTab == tab ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+
+    /// <summary>Search, hide-empty toggle, and a picker to start lines for a hidden event.</summary>
+    private void DrawLinesToolbar(VoicePack pack, List<Line> jobLines)
+    {
+        ImGui.SetNextItemWidth(200);
+        ImGui.InputTextWithHint("##linesearch", "Search events and lines...", ref lineSearch, 64);
+
+        ImGui.SameLine();
+        var hide = plugin.Configuration.LinesHideEmpty;
+        if (ImGui.Checkbox("Hide empty", ref hide))
+        {
+            plugin.Configuration.LinesHideEmpty = hide;
+            plugin.Configuration.Save();
+        }
+
+        if (!plugin.Configuration.LinesHideEmpty)
+            return;
+
+        var empty = pack.AllEvents()
+                        .Where(e => e.AppliesTo(editJob) && jobLines.All(l => l.Event != e.Name))
+                        .ToList();
+        if (empty.Count == 0)
+            return;
+
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(170);
+        if (ImGui.BeginCombo("##addto", "+ Add lines to..."))
+        {
+            foreach (var ev in empty)
+            {
+                if (ImGui.Selectable(ev.Label))
+                {
+                    AddLine(pack, jobLines, ev.Name);
+                    focusEvent = ev.Name;
+                }
+            }
+            ImGui.EndCombo();
+        }
+    }
+
+    private void AddLine(VoicePack pack, List<Line> jobLines, string eventName)
+    {
+        jobLines.Add(new Line
+        {
+            Id = pack.NextLineId(editJob, eventName),
+            Event = eventName,
+            Mood = KnownEvents.Moods[0],
+            Weight = 1,
+            Job = editJob,
+        });
+        Changed();
+    }
+
+    private void DrawEventLines(VoicePack pack, List<Line> jobLines, KnownEvents.Info ev)
+    {
+        var evLines = jobLines.Where(l => l.Event == ev.Name).ToList();
+        var rec = evLines.Count(l => l.AudioPath != null);
+        var header = $"{ev.Label}  ({rec}/{evLines.Count} recorded)###ev_{ev.Name}";
+
+        if (ev.Name == focusEvent || lineSearch.Trim().Length > 0)
+        {
+            ImGui.SetNextItemOpen(true);
+            if (ev.Name == focusEvent) ImGui.SetScrollHereY();
+        }
+
+        if (!ImGui.CollapsingHeader(header))
+        {
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip(ev.Trigger);
+            return;
+        }
+
+        ImGui.Indent();
+        ImGui.TextColored(Muted, ev.Trigger);
+        var triggerInfo = JobTriggers.Describe(ev.Name, editJob);
+        if (triggerInfo.Length > 0)
+            InfoMarker(triggerInfo);
+        if (ev.IsCustom)
+        {
+            ImGui.SameLine();
+            if (ImGui.SmallButton($"Edit trigger##trg_{ev.Name}"))
+            {
+                pendingTab = "Custom Events";
+                focusCustomEvent = ev.Name;
+            }
+        }
+
+        Line? toDelete = null;
+        foreach (var line in evLines)
+        {
+            if (DrawLine(pack, line, ev))
+                toDelete = line;
+        }
+
+        if (toDelete != null)
+        {
+            jobLines.Remove(toDelete);
+            Changed();
+        }
+
+        if (ImGui.Button($"+ Add line##add_{ev.Name}"))
+            AddLine(pack, jobLines, ev.Name);
+
+        ImGui.Unindent();
+        ImGui.Spacing();
+    }
+
+    /// <summary>A top-level collapsible section whose open/closed state is remembered.</summary>
+    private bool Section(string id, string title, bool openByDefault)
+    {
+        var collapsed = plugin.Configuration.CollapsedSections;
+        var key = id + (openByDefault ? "" : ":closed-default");
+        var open = openByDefault ? !collapsed.Contains(key) : collapsed.Contains(key);
+        ImGui.SetNextItemOpen(open);
+
+        ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.25f, 0.25f, 0.3f, 0.9f));
+        var nowOpen = ImGui.CollapsingHeader($"{title}###{id}");
+        ImGui.PopStyleColor();
+
+        if (nowOpen != open)
+        {
+            // Store only deviations from the default.
+            if (nowOpen == openByDefault) collapsed.Remove(key); else collapsed.Add(key);
+            plugin.Configuration.Save();
+        }
+
+        if (nowOpen) ImGui.Spacing();
+        return nowOpen;
+    }
+
+    /// <summary>A category inside a section (tree node). Caller must TreePop() when it returns true.</summary>
+    private bool SubSection(string id, string title)
+    {
+        var collapsed = plugin.Configuration.CollapsedSections;
+        var open = !collapsed.Contains(id);
+        ImGui.SetNextItemOpen(open);
+        var nowOpen = ImGui.TreeNodeEx($"{title}###{id}", ImGuiTreeNodeFlags.SpanAvailWidth);
+        if (nowOpen != open)
+        {
+            if (nowOpen) collapsed.Remove(id); else collapsed.Add(id);
+            plugin.Configuration.Save();
+        }
+        return nowOpen;
     }
 
     /// <summary>Draws one line's editor. Returns true if the user asked to delete it.</summary>

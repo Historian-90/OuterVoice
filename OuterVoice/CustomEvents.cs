@@ -37,6 +37,14 @@ public class CustomEvent
     public int CooldownSeconds { get; set; } = 30;
     public int Priority { get; set; } = 2;
 
+    /// <summary>Optional grouping shown on the Lines and Custom Events tabs ("Emotes", "RP"...).</summary>
+    public string Category { get; set; } = string.Empty;
+
+    /// <summary>Switched-off events are kept but never trigger.</summary>
+    public bool Enabled { get; set; } = true;
+
+    public string CategoryOrDefault => string.IsNullOrWhiteSpace(Category) ? "Other" : Category.Trim();
+
     public bool IsUsable => Conditions.Count > 0 && Conditions.All(c => !string.IsNullOrWhiteSpace(c.Value));
 
     public string Summary =>
@@ -55,5 +63,6 @@ public class CustomEvent
 
     private static string Quote(string s) => s.Length > 0 ? $"\"{s}\"" : "?";
 
-    public KnownEvents.Info ToInfo() => new(Id, Name, Priority, CooldownSeconds, Summary);
+    public KnownEvents.Info ToInfo() =>
+        new(Id, Enabled ? Name : Name + " (off)", Priority, CooldownSeconds, Summary, CategoryOrDefault, IsCustom: true);
 }

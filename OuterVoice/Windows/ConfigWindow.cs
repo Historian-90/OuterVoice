@@ -45,13 +45,13 @@ public sealed partial class ConfigWindow : Window
             ImGui.EndTabItem();
         }
 
-        if (ImGui.BeginTabItem("Lines"))
+        if (ImGui.BeginTabItem("Lines", TabFlags("Lines")))
         {
             DrawLines();
             ImGui.EndTabItem();
         }
 
-        if (ImGui.BeginTabItem("Custom Events"))
+        if (ImGui.BeginTabItem("Custom Events", TabFlags("Custom Events")))
         {
             DrawCustomEvents();
             ImGui.EndTabItem();
@@ -70,6 +70,7 @@ public sealed partial class ConfigWindow : Window
         }
 
         ImGui.EndTabBar();
+        pendingTab = null;
     }
 
     // ---- Header: on/off + status at a glance ---------------------------------

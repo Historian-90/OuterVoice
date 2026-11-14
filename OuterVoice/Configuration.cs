@@ -64,6 +64,12 @@ public class Configuration : IPluginConfiguration
         return prefs;
     }
 
+    /// <summary>Lines tab: only show events that already have lines.</summary>
+    public bool LinesHideEmpty { get; set; }
+
+    /// <summary>Sections the user collapsed on the Lines / Custom Events tabs.</summary>
+    public HashSet<string> CollapsedSections { get; set; } = new();
+
     public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
 }
 

@@ -290,7 +290,7 @@ public sealed class EventWatcher : IDisposable
 
         foreach (var ev in actor.Pack.CustomEvents)
         {
-            if (!ev.IsUsable) continue;
+            if (!ev.IsUsable || !ev.Enabled) continue;
 
             var allTrue = ev.Conditions.All(c => c.Type switch
             {

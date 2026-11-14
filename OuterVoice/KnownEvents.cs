@@ -6,7 +6,8 @@ namespace OuterVoice;
 /// <summary>The events the plugin can detect, with default timing. Packs may override timing.</summary>
 public static class KnownEvents
 {
-    public record Info(string Name, string Label, int Priority, int CooldownSeconds, string Trigger)
+    public record Info(string Name, string Label, int Priority, int CooldownSeconds, string Trigger,
+                       string? Category = null, bool IsCustom = false)
     {
         /// <summary>Jobs this event exists for, or null if every job has it.</summary>
         public string[]? Jobs => JobTriggers.JobsFor(Name);
