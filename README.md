@@ -86,10 +86,6 @@ Then add the built `OuterVoice.dll` under **Dev Plugin Locations** in `/xlsettin
 
 ## Releasing (maintainer)
 
-Push a version tag and GitHub Actions builds the plugin, publishes a release, and updates
-`repo.json` so everyone gets the update:
-
-```
-git tag v0.1.1
-git push origin v0.1.1
-```
+Raise `<Version>` in `OuterVoice/OuterVoice.csproj` (e.g. `0.1.1.0`) and push to `main`.
+GitHub Actions builds the plugin, publishes a release (`v0.1.1`), and updates `repo.json` so
+everyone gets the update. You can also run the **Release** workflow by hand from the Actions tab.

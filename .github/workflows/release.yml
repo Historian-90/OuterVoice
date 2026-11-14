@@ -1,10 +1,13 @@
 name: Release
 
-# Push a tag like v0.1.1 to build the plugin, publish it as a GitHub release,
-# and bump repo.json so friends' Dalamud picks up the update.
+# Bump <Version> in OuterVoice/OuterVoice.csproj and push to main: this builds the plugin,
+# publishes it as a GitHub release (v<version>), and updates repo.json so friends' Dalamud
+# picks up the update. Can also be run by hand from the Actions tab.
 on:
   push:
-    tags: [ 'v*' ]
+    branches: [ main ]
+    paths: [ 'OuterVoice/OuterVoice.csproj', '.github/workflows/release.yml' ]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -33,16 +36,28 @@ jobs:
     - name: Work out version
       id: ver
       shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
-        $v = "${{ github.ref_name }}".TrimStart('v')
+        [xml]$proj = Get-Content OuterVoice\OuterVoice.csproj
+        $v = ($proj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version.Trim()
         # Dalamud wants four parts: 0.1.1 -> 0.1.1.0
         while (($v.Split('.')).Count -lt 4) { $v = "$v.0" }
+        $tag = "v" + ($v -replace '\.0$', '')
+        gh release view $tag 2>$null
+        $exists = ($LASTEXITCODE -eq 0)
         "version=$v" >> $env:GITHUB_OUTPUT
+        "tag=$tag" >> $env:GITHUB_OUTPUT
+        "exists=$exists" >> $env:GITHUB_OUTPUT
+        if ($exists) { Write-Host "Release $tag already exists; bump <Version> to publish a new one." }
+        exit 0
 
     - name: Build
+      if: steps.ver.outputs.exists == 'False'
       run: dotnet build OuterVoice.slnx --configuration Release -p:Version=${{ steps.ver.outputs.version }}
 
     - name: Find packaged plugin
+      if: steps.ver.outputs.exists == 'False'
       id: zip
       shell: pwsh
       run: |
@@ -51,11 +66,13 @@ jobs:
         "path=$($zip.FullName)" >> $env:GITHUB_OUTPUT
 
     - name: Publish release
+      if: steps.ver.outputs.exists == 'False'
       env:
         GH_TOKEN: ${{ github.token }}
-      run: gh release create "${{ github.ref_name }}" "${{ steps.zip.outputs.path }}" --title "Outer Voice ${{ github.ref_name }}" --generate-notes
+      run: gh release create "${{ steps.ver.outputs.tag }}" "${{ steps.zip.outputs.path }}" --target main --title "Outer Voice ${{ steps.ver.outputs.tag }}" --generate-notes
 
     - name: Update repo.json
+      if: steps.ver.outputs.exists == 'False'
       shell: pwsh
       run: |
         $json = Get-Content repo.json -Raw | ConvertFrom-Json
@@ -65,5 +82,5 @@ jobs:
         git config user.name "github-actions"
         git config user.email "github-actions@users.noreply.github.com"
         git add repo.json
-        git commit -m "Release ${{ github.ref_name }}" || exit 0
+        git commit -m "Release ${{ steps.ver.outputs.tag }}" || exit 0
         git push origin main
