@@ -19,6 +19,7 @@ public sealed partial class ConfigWindow
     ];
 
     private string customSearch = string.Empty;
+    private readonly System.Collections.Generic.Dictionary<string, string> categoryDrafts = new();
 
     private void DrawCustomEvents()
     {
@@ -144,11 +145,16 @@ public sealed partial class ConfigWindow
             Changed();
         }
 
-        var category = ev.Category;
+        // Typing edits a draft; the category is applied when you leave the box (or press Enter).
+        // Applying it per keystroke would move the event between groups mid-typing and drop focus.
+        var category = categoryDrafts.TryGetValue(ev.Id, out var draft) ? draft : ev.Category;
         ImGui.SetNextItemWidth(190);
         if (ImGui.InputTextWithHint("##category", "Other", ref category, 32))
+            categoryDrafts[ev.Id] = category;
+        if (ImGui.IsItemDeactivatedAfterEdit())
         {
-            ev.Category = category;
+            ev.Category = category.Trim();
+            categoryDrafts.Remove(ev.Id);
             Changed();
         }
         ImGui.SameLine(0, 2);
@@ -171,7 +177,7 @@ public sealed partial class ConfigWindow
         }
         ImGui.SameLine();
         ImGui.TextUnformatted("Category");
-        HelpMarker("Groups events on this tab and the Lines tab, e.g. Emotes, RP, Moodles. Blank = Other.");
+        HelpMarker("Groups events on this tab and the Lines tab, e.g. Emotes, RP, Moodles. Blank = Other.\nApplied when you click away or press Enter.");
 
         ImGui.TextUnformatted("When all of these are true:");
         InfoMarker("Casting: you're casting an action with a cast bar (instant actions can't be seen).\n" +
