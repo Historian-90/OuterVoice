@@ -8,12 +8,18 @@
     "Description": "Give your character a voice. Record lines for events like raises, deaths, Kardia swaps, wipes and clears, then share your voice pack with friends: when you're in a party together, each of you hears the other's character speak too.\n\nOnly one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play.",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/Historian-90/OuterVoice",
-    "Tags": ["voice", "roleplay", "rp", "flavor", "party"],
+    "Tags": [
+      "voice",
+      "roleplay",
+      "rp",
+      "flavor",
+      "party"
+    ],
     "DalamudApiLevel": 15,
     "IsTestingExclusive": false,
     "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/latest/download/latest.zip",
     "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/latest/download/latest.zip",
     "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/latest/download/latest.zip",
-    "LastUpdate": 0
+    "LastUpdate": 1794628313
   }
 ]
