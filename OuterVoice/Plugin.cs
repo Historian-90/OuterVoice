@@ -194,7 +194,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 // /ov test <event> [job]
                 var testArgs = parts[1].Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                var job = testArgs.Length > 1 ? testArgs[1].ToUpperInvariant() : EventWatcher.CurrentJob() ?? "SGE";
+                var job = testArgs.Length > 1 ? testArgs[1].ToUpperInvariant() : EventWatcher.CurrentJob() ?? VoicePack.SharedJob;
                 if (Speaker.Test(testArgs[0], job) == null)
                     ChatGui.PrintError($"No {job} lines found for event '{testArgs[0]}'.");
                 break;

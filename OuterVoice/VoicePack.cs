@@ -47,7 +47,6 @@ public class Line
 public class VoicePack
 {
     public const string FileName = "voicepack.json";
-    public const string LegacyFileName = "mika_lines.json";
     public const string SharedJob = "ALL";
 
     /// <summary>Display name of the pack.</summary>
@@ -81,20 +80,6 @@ public class VoicePack
                    ?? throw new InvalidDataException($"{FileName} is empty.");
             pack.Jobs = new Dictionary<string, List<Line>>(pack.Jobs, StringComparer.OrdinalIgnoreCase);
         }
-        else if (File.Exists(Path.Combine(folder, LegacyFileName)))
-        {
-            // Old single-job format: treat every line as a Sage line.
-            var legacy = JsonConvert.DeserializeObject<LegacyPack>(File.ReadAllText(Path.Combine(folder, LegacyFileName)))
-                         ?? throw new InvalidDataException($"{LegacyFileName} is empty.");
-            pack = new VoicePack
-            {
-                Name = legacy.Name,
-                Version = legacy.Version,
-                GlobalCooldownSeconds = legacy.GlobalCooldownSeconds,
-                Events = legacy.Events,
-                Jobs = new Dictionary<string, List<Line>>(StringComparer.OrdinalIgnoreCase) { ["SGE"] = legacy.Lines },
-            };
-        }
         else
         {
             throw new FileNotFoundException($"No {FileName} in that folder.");
@@ -127,6 +112,13 @@ public class VoicePack
                     .ToArray();
         return System.Text.RegularExpressions.Regex.Replace(new string(chars), " {2,}", " ").Trim();
     }
+
+    /// <summary>
+    /// A line whose event no longer exists (a retired built-in event, or a deleted custom event).
+    /// It never plays; the Lines tab lists these so they can be moved or deleted.
+    /// </summary>
+    public bool IsUnused(Line line) =>
+        KnownEvents.Get(line.Event) == null && CustomEvents.All(c => c.Id != line.Event);
 
     public bool HasJob(string job) => Jobs.TryGetValue(job, out var lines) && lines.Count > 0;
 
@@ -246,14 +238,5 @@ public class VoicePack
         names.Add(line.Id + ".wav");
 
         return dirs.SelectMany(d => names.Select(n => Path.Combine(d, n))).FirstOrDefault(File.Exists);
-    }
-
-    private class LegacyPack
-    {
-        public string Name { get; set; } = string.Empty;
-        public string Version { get; set; } = string.Empty;
-        public int GlobalCooldownSeconds { get; set; } = 20;
-        public Dictionary<string, EventDef> Events { get; set; } = new();
-        public List<Line> Lines { get; set; } = new();
     }
 }

@@ -122,13 +122,22 @@ public sealed partial class ConfigWindow
             ImGui.TableSetupColumn("Recorded");
             ImGui.TableHeadersRow();
 
-            foreach (var (job, lines) in OrderedJobs(pack))
+            foreach (var (job, allLines) in OrderedJobs(pack))
             {
+                var lines = allLines.Where(l => !pack.IsUnused(l)).ToList();
+                var unused = allLines.Count - lines.Count;
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
                 ImGui.TextUnformatted(JobLabel(job));
                 ImGui.TableNextColumn();
                 ImGui.TextUnformatted(lines.Count.ToString());
+                if (unused > 0)
+                {
+                    ImGui.SameLine();
+                    ImGui.TextColored(Warn, $"+{unused} unused");
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("Lines for events that no longer exist. Find them under UNUSED LINES on the Lines tab.");
+                }
                 ImGui.TableNextColumn();
                 var rec = lines.Count(l => l.AudioPath != null);
                 ImGui.TextColored(rec == lines.Count && lines.Count > 0 ? Good : Muted, $"{rec} / {lines.Count}");
@@ -273,6 +282,8 @@ public sealed partial class ConfigWindow
             }
         }
 
+        DrawUnusedLines(pack, jobLines);
+
         if (common.Count + jobEvents.Count + custom.Count == 0)
             ImGui.TextColored(Muted, q.Length > 0 ? "Nothing matches your search." : "No events with lines yet. Use \"+ Add lines to...\" above.");
 
@@ -281,6 +292,62 @@ public sealed partial class ConfigWindow
     }
 
     private string lineSearch = string.Empty;
+
+    /// <summary>Lines whose event no longer exists: move them to a real event, or delete them.</summary>
+    private void DrawUnusedLines(VoicePack pack, List<Line> jobLines)
+    {
+        var unused = jobLines.Where(pack.IsUnused).ToList();
+        if (unused.Count == 0 || !Section("lines:unused", $"UNUSED LINES ({unused.Count})", true))
+            return;
+
+        ImGui.PushTextWrapPos();
+        ImGui.TextColored(Muted, "These lines belong to events that no longer exist (retired, or a deleted custom event), " +
+                                 "so they never play. Move them to another event to reuse them, or delete them.");
+        ImGui.PopTextWrapPos();
+
+        var targets = pack.AllEvents().Where(e => e.AppliesTo(editJob)).ToList();
+        Line? remove = null;
+        foreach (var line in unused)
+        {
+            ImGui.PushID("unused" + line.Id);
+            ImGui.Bullet();
+            ImGui.SameLine();
+            ImGui.TextUnformatted(string.IsNullOrWhiteSpace(line.Text) ? "(no text)" : line.Text);
+            ImGui.SameLine();
+            ImGui.TextColored(Muted, $"[{line.Event}]");
+
+            ImGui.Indent();
+            ImGui.SetNextItemWidth(170);
+            if (ImGui.BeginCombo("##moveto", "Move to event..."))
+            {
+                foreach (var ev in targets)
+                {
+                    if (ImGui.Selectable(ev.Label))
+                    {
+                        line.Event = ev.Name;
+                        Changed();
+                    }
+                }
+                ImGui.EndCombo();
+            }
+            ImGui.SameLine();
+            var ctrl = ImGui.GetIO().KeyCtrl;
+            if (!ctrl) ImGui.BeginDisabled();
+            if (ImGui.SmallButton("Delete"))
+                remove = line;
+            if (!ctrl) ImGui.EndDisabled();
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip("Hold Ctrl to delete this line. (Its audio file is kept.)");
+            ImGui.Unindent();
+            ImGui.PopID();
+        }
+
+        if (remove != null)
+        {
+            jobLines.Remove(remove);
+            Changed();
+        }
+    }
     private string? focusEvent;        // event to scroll to / expand on the Lines tab
     private string? focusCustomEvent;  // custom event to expand on the Custom Events tab
     private string? pendingTab;
