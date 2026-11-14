@@ -37,6 +37,13 @@ public sealed class EventWatcher : IDisposable
     private static readonly string[] LimitBreak1Names = ["Shield Wall", "Healing Wind", "Braver", "Big Shot", "Skyshard"];
     private static readonly string[] LimitBreak2Names = ["Stronghold", "Breath of the Earth", "Bladedance", "Desperado", "Starstorm"];
 
+    // Tank Limit Breaks have no cast bar, but they put a buff of the same name on the tank.
+    private static readonly string[] TankLimitBreakNames =
+        ["Shield Wall", "Stronghold", "Last Bastion", "Land Waker", "Dark Force", "Gunmetal Soul"];
+
+    private readonly Dictionary<uint, int> tankLimitBreakStatusLevels;
+    private readonly HashSet<(uint Caster, uint Status)> tankLimitBreakSeen = new();
+
     /// <summary>Job triggers with their status/action names resolved to game IDs.</summary>
     private readonly List<(JobTrigger Def, HashSet<uint> Statuses, HashSet<uint> Casts)> triggers = new();
 
@@ -72,13 +79,13 @@ public sealed class EventWatcher : IDisposable
         // worked out from the action itself, so it works without a gauge (e.g. Explorer Mode).
         limitBreakLevels = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()
             .Where(r => r.ActionCategory.RowId == 9)
-            .ToDictionary(r => r.RowId, r =>
-            {
-                var name = r.Name.ExtractText();
-                if (LimitBreak1Names.Contains(name, StringComparer.OrdinalIgnoreCase)) return 1;
-                if (LimitBreak2Names.Contains(name, StringComparer.OrdinalIgnoreCase)) return 2;
-                return 3;
-            });
+            .ToDictionary(r => r.RowId, r => LimitBreakLevelOf(r.Name.ExtractText()));
+
+        tankLimitBreakStatusLevels = Plugin.DataManager.GetExcelSheet<Status>()
+            .Where(r => TankLimitBreakNames.Contains(r.Name.ExtractText(), StringComparer.OrdinalIgnoreCase))
+            .ToDictionary(r => r.RowId, r => LimitBreakLevelOf(r.Name.ExtractText()));
+        if (tankLimitBreakStatusLevels.Count == 0)
+            Plugin.Log.Info("No tank Limit Break buffs found in game data; tank LBs won't trigger.");
         foreach (var t in JobTriggers.All)
         {
             var statuses = StatusIdsNamed(t.Statuses);
@@ -243,6 +250,17 @@ public sealed class EventWatcher : IDisposable
     {
         if (actor.Obj == null) return;
 
+        // Tanks: the Limit Break buff appears on the tank, from the tank.
+        foreach (var (statusId, tankLevel) in tankLimitBreakStatusLevels)
+        {
+            var has = actor.Obj.StatusList.Any(s => s.StatusId == statusId && s.SourceId == actor.EntityId);
+            if (has && tankLimitBreakSeen.Add((actor.EntityId, statusId)) && baselined.Contains(actor.EntityId))
+                Say(actor, $"limit_break_{tankLevel}");
+            else if (!has)
+                tankLimitBreakSeen.Remove((actor.EntityId, statusId));
+        }
+
+        // Everyone else: the Limit Break cast bar.
         var key = (actor.EntityId, "limit_break");
         if (!actor.Obj.IsCasting || !limitBreakLevels.TryGetValue(actor.Obj.CastActionId, out var level))
         {
@@ -252,6 +270,13 @@ public sealed class EventWatcher : IDisposable
 
         if (casting.Add(key) && baselined.Contains(actor.EntityId))
             Say(actor, $"limit_break_{level}");
+    }
+
+    private static int LimitBreakLevelOf(string name)
+    {
+        if (LimitBreak1Names.Contains(name, StringComparer.OrdinalIgnoreCase)) return 1;
+        if (LimitBreak2Names.Contains(name, StringComparer.OrdinalIgnoreCase)) return 2;
+        return 3;
     }
 
     /// <summary>Self-status and cast triggers for one voiced character.</summary>
@@ -410,6 +435,7 @@ public sealed class EventWatcher : IDisposable
         givenSeen.Clear();
         selfSeen.Clear();
         casting.Clear();
+        tankLimitBreakSeen.Clear();
         baselined.Clear();
         wasBigPull = false;
     }
