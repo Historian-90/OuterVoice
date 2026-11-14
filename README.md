@@ -46,8 +46,9 @@ Friends' voices play when they're in your party.
   more urgent line can cut in, and it replaces what's playing instead of overlapping.
 - **Personal events belong to their owner.** A raise, death, Kardia swap or big heal is only
   voiced by the character who did it.
-- **No back-to-back repeats.** Once a character says a line, they won't say that same line again
-  until they've said a different one. If an event only has one line, it stays quiet the next time.
+- **No repeats per trigger.** The line a character last said for an event won't be picked for that
+  event again until a different line for the same event has played. If an event only has one line,
+  it can play again once the character has said something else in between.
 - **Shared events get one speaker.** Duty start, wipes, clears, tank deaths, clutch saves and big
   pulls are voiced by one party member, picked the same way on everyone's machine (with the same
   line), so everyone hears the same thing.
@@ -66,6 +67,7 @@ Friends' voices play when they're in your party.
 | Wipe | The party wipes |
 | Big pull | 5+ enemies in combat within 30 yalms |
 | Duty complete / Clean clear | Duty cleared (clean = no deaths) |
+| Limit Break 1 / 2 / 3 | You start casting a Limit Break (the level is how many bars the party gauge has) |
 
 **Job-specific**
 

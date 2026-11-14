@@ -31,6 +31,7 @@ public sealed class EventWatcher : IDisposable
 
     private readonly Speaker speaker;
     private readonly HashSet<uint> raiseIds;
+    private readonly HashSet<uint> limitBreakIds;
 
     /// <summary>Job triggers with their status/action names resolved to game IDs.</summary>
     private readonly List<(JobTrigger Def, HashSet<uint> Statuses, HashSet<uint> Casts)> triggers = new();
@@ -62,6 +63,12 @@ public sealed class EventWatcher : IDisposable
     {
         this.speaker = speaker;
         raiseIds = StatusIdsNamed("Raise");
+
+        // Every Limit Break action in the game (action category 9 = "Limit Break").
+        limitBreakIds = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()
+                              .Where(r => r.ActionCategory.RowId == 9)
+                              .Select(r => r.RowId)
+                              .ToHashSet();
         foreach (var t in JobTriggers.All)
         {
             var statuses = StatusIdsNamed(t.Statuses);
@@ -213,11 +220,43 @@ public sealed class EventWatcher : IDisposable
 
         foreach (var actor in actors)
         {
+            CheckLimitBreak(actor);
             CheckSelfTriggers(actor);
             baselined.Add(actor.EntityId);
         }
 
         CheckBigPull(me);
+    }
+
+    /// <summary>
+    /// A voiced character starts casting a Limit Break. The level is however many full bars the
+    /// party gauge has at that moment (the game always fires the highest one available).
+    /// </summary>
+    private void CheckLimitBreak(Actor actor)
+    {
+        if (actor.Obj == null) return;
+
+        var key = (actor.EntityId, "limit_break");
+        var isLb = actor.Obj.IsCasting && limitBreakIds.Contains(actor.Obj.CastActionId);
+        if (!isLb)
+        {
+            casting.Remove(key);
+            return;
+        }
+
+        if (!casting.Add(key) || !baselined.Contains(actor.EntityId))
+            return;
+
+        var level = LimitBreakLevel();
+        if (level is >= 1 and <= 3)
+            Say(actor, $"limit_break_{level}");
+    }
+
+    private static unsafe int LimitBreakLevel()
+    {
+        var lb = FFXIVClientStructs.FFXIV.Client.Game.UI.LimitBreakController.Instance();
+        if (lb == null || lb->BarUnits == 0) return 0;
+        return Math.Min(lb->CurrentUnits / lb->BarUnits, (int)lb->BarCount);
     }
 
     /// <summary>Self-status and cast triggers for one voiced character.</summary>

@@ -30,6 +30,9 @@ public static class KnownEvents
         new("big_pull", "Big pull", 1, 180, "5+ enemies in combat within 30 yalms."),
         new("duty_complete", "Duty complete", 3, 0, "Duty cleared with at least one death."),
         new("duty_complete_clean", "Clean clear", 3, 0, "Duty cleared with no deaths."),
+        new("limit_break_1", "Limit Break 1", 2, 0, "You start casting a level 1 Limit Break."),
+        new("limit_break_2", "Limit Break 2", 3, 0, "You start casting a level 2 Limit Break."),
+        new("limit_break_3", "Limit Break 3", 5, 0, "You start casting a level 3 Limit Break."),
 
         // Job-specific (which jobs have them is defined in JobTriggers)
         new("burst", "Burst window", 2, 100, "You pop your big damage or raid buff."),

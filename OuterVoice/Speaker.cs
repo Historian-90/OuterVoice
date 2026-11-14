@@ -17,9 +17,12 @@ public sealed class Speaker
     private readonly Dictionary<string, DateTime> lastEventTime = new();
     private DateTime lastAnyLine = DateTime.MinValue;
 
-    // The last line each character spoke. It can't be picked again until that character says
-    // something else, so a voice never repeats itself back to back.
+    // Repeat protection:
+    //  - per trigger: the last line a character said for an event can't be picked for that event
+    //    again until a different line for the same event has played;
+    //  - if the event only has one line, it waits until the character has said anything else.
     private readonly Dictionary<string, string> lastLineByVoice = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> lastLineByTrigger = new(StringComparer.OrdinalIgnoreCase);
 
     public Speaker(Plugin plugin) => this.plugin = plugin;
 
@@ -82,19 +85,36 @@ public sealed class Speaker
         }
 
         var voiceKey = pack.Character;
+        var triggerKey = $"{voiceKey}|{job}|{eventName}|{initial}";
         var options = pack.LinesFor(job, eventName);
         if (initial.HasValue)
             options = options.Where(l => l.Initial == initial.Value).ToList();
-        if (!force && lastLineByVoice.TryGetValue(voiceKey, out var lastKey))
-            options = options.Where(l => LineKey(l) != lastKey).ToList();
 
-        // If the only line for this event is the one just spoken, stay quiet this time.
+        if (!force)
+        {
+            // Skip the line this character last said for this trigger...
+            var fresh = lastLineByTrigger.TryGetValue(triggerKey, out var lastForTrigger)
+                ? options.Where(l => LineKey(l) != lastForTrigger).ToList()
+                : options;
+
+            // ...unless it's the only line, in which case it may repeat once the character has
+            // said something else in between.
+            if (fresh.Count == 0 && options.Count > 0 &&
+                (!lastLineByVoice.TryGetValue(voiceKey, out var lastAny) || lastAny != lastForTrigger))
+                fresh = options;
+
+            options = fresh;
+        }
+
         var line = Pick(options, seed);
         if (line == null)
             return null;
 
         if (!force)
+        {
             lastLineByVoice[voiceKey] = LineKey(line);
+            lastLineByTrigger[triggerKey] = LineKey(line);
+        }
 
         lastEventTime[cooldownKey] = now;
         lastAnyLine = now;
