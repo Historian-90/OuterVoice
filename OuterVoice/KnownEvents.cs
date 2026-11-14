@@ -28,7 +28,7 @@ public static class KnownEvents
         new("raise", "Raise", 3, 30, "Someone gets a Raise from you."),
         new("self_death", "You die", 4, 0, "You die."),
         new("wipe", "Wipe", 5, 0, "The party wipes."),
-        new("big_pull", "Big pull", 1, 180, "5+ enemies in combat within 30 yalms."),
+        new("big_pull", "Big pull", 1, 180, "5+ real enemies (targetable and hostile) in combat within 30 yalms for over a second."),
         new("duty_complete", "Duty complete", 3, 0, "Duty cleared with at least one death."),
         new("duty_complete_clean", "Clean clear", 3, 0, "Duty cleared with no deaths."),
         new("limit_break_1", "Limit Break 1", 2, 0, "You start casting a level 1 Limit Break."),

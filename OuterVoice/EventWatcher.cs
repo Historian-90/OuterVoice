@@ -28,6 +28,7 @@ public sealed class EventWatcher : IDisposable
     private static readonly TimeSpan ClutchWindow = TimeSpan.FromSeconds(3);
     private const int BigPullCount = 5;
     private const float BigPullRange = 30f;
+    private static readonly TimeSpan BigPullHold = TimeSpan.FromSeconds(1.5);
 
     private readonly Speaker speaker;
     private readonly HashSet<uint> raiseIds;
@@ -50,6 +51,7 @@ public sealed class EventWatcher : IDisposable
     private DateTime nextTick = DateTime.MinValue;
     private int deathsThisDuty;
     private bool wasBigPull;
+    private DateTime? bigPullSince;
 
     // Per-entity memory, so each event fires once on the moment it happens.
     private readonly Dictionary<uint, uint> lastHp = new();
@@ -390,17 +392,33 @@ public sealed class EventWatcher : IDisposable
         if (!Plugin.Condition[ConditionFlag.InCombat])
         {
             wasBigPull = false;
+            bigPullSince = null;
             return;
         }
 
+        // Only real enemies count. Boss fights spawn many invisible helper objects for mechanics
+        // (hit areas, markers, bubbles to hide in...) that the game also marks as combatants, so
+        // each one must be targetable, hostile, alive, named, and actually have HP.
         var count = Plugin.ObjectTable
             .OfType<IBattleNpc>()
             .Count(n => n.BattleNpcKind == BattleNpcSubKind.Combatant
+                        && n.IsTargetable
+                        && !n.IsDead
                         && n.CurrentHp > 0
+                        && n.MaxHp > 1
+                        && (n.StatusFlags & StatusFlags.Hostile) != 0
                         && (n.StatusFlags & StatusFlags.InCombat) != 0
+                        && n.Name.TextValue.Length > 0
                         && (n.Position - me.Position).Length() <= BigPullRange);
 
-        var big = count >= BigPullCount;
+        // Require the pull to stay big for a moment, so a brief spike doesn't trigger it.
+        var now = DateTime.UtcNow;
+        if (count >= BigPullCount)
+            bigPullSince ??= now;
+        else
+            bigPullSince = null;
+
+        var big = bigPullSince.HasValue && now - bigPullSince.Value >= BigPullHold;
         if (big && !wasBigPull)
             SayShared("big_pull");
         wasBigPull = big;
@@ -516,6 +534,7 @@ public sealed class EventWatcher : IDisposable
         customActive.Clear();
         baselined.Clear();
         wasBigPull = false;
+        bigPullSince = null;
     }
 
     // ---- Game data lookups -----------------------------------------------------------------

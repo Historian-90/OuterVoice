@@ -84,7 +84,7 @@ name to people who open it in a browser. You can turn the link off at any time.
 | Raise | Someone gets a Raise from you |
 | You die | You die |
 | Wipe | The party wipes |
-| Big pull | 5+ enemies in combat within 30 yalms |
+| Big pull | 5+ targetable, hostile enemies in combat within 30 yalms for over a second |
 | Duty complete / Clean clear | Duty cleared (clean = no deaths) |
 | Limit Break 1 / 2 / 3 | You start casting a Limit Break (works without a gauge too, e.g. Explorer Mode) |
 
