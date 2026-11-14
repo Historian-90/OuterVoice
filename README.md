@@ -67,7 +67,7 @@ Friends' voices play when they're in your party.
 | Wipe | The party wipes |
 | Big pull | 5+ enemies in combat within 30 yalms |
 | Duty complete / Clean clear | Duty cleared (clean = no deaths) |
-| Limit Break 1 / 2 / 3 | You start casting a Limit Break (the level is how many bars the party gauge has) |
+| Limit Break 1 / 2 / 3 | You start casting a Limit Break (works without a gauge too, e.g. Explorer Mode) |
 
 **Job-specific**
 

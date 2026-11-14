@@ -31,7 +31,11 @@ public sealed class EventWatcher : IDisposable
 
     private readonly Speaker speaker;
     private readonly HashSet<uint> raiseIds;
-    private readonly HashSet<uint> limitBreakIds;
+    private readonly Dictionary<uint, int> limitBreakLevels;
+
+    // LB1 and LB2 are shared by each role; every other Limit Break is a job's own LB3.
+    private static readonly string[] LimitBreak1Names = ["Shield Wall", "Healing Wind", "Braver", "Big Shot", "Skyshard"];
+    private static readonly string[] LimitBreak2Names = ["Stronghold", "Breath of the Earth", "Bladedance", "Desperado", "Starstorm"];
 
     /// <summary>Job triggers with their status/action names resolved to game IDs.</summary>
     private readonly List<(JobTrigger Def, HashSet<uint> Statuses, HashSet<uint> Casts)> triggers = new();
@@ -64,11 +68,17 @@ public sealed class EventWatcher : IDisposable
         this.speaker = speaker;
         raiseIds = StatusIdsNamed("Raise");
 
-        // Every Limit Break action in the game (action category 9 = "Limit Break").
-        limitBreakIds = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()
-                              .Where(r => r.ActionCategory.RowId == 9)
-                              .Select(r => r.RowId)
-                              .ToHashSet();
+        // Every Limit Break action in the game (action category 9 = "Limit Break"), with its level
+        // worked out from the action itself, so it works without a gauge (e.g. Explorer Mode).
+        limitBreakLevels = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Action>()
+            .Where(r => r.ActionCategory.RowId == 9)
+            .ToDictionary(r => r.RowId, r =>
+            {
+                var name = r.Name.ExtractText();
+                if (LimitBreak1Names.Contains(name, StringComparer.OrdinalIgnoreCase)) return 1;
+                if (LimitBreak2Names.Contains(name, StringComparer.OrdinalIgnoreCase)) return 2;
+                return 3;
+            });
         foreach (var t in JobTriggers.All)
         {
             var statuses = StatusIdsNamed(t.Statuses);
@@ -228,35 +238,20 @@ public sealed class EventWatcher : IDisposable
         CheckBigPull(me);
     }
 
-    /// <summary>
-    /// A voiced character starts casting a Limit Break. The level is however many full bars the
-    /// party gauge has at that moment (the game always fires the highest one available).
-    /// </summary>
+    /// <summary>A voiced character starts casting a Limit Break (level from the action's cast bar).</summary>
     private void CheckLimitBreak(Actor actor)
     {
         if (actor.Obj == null) return;
 
         var key = (actor.EntityId, "limit_break");
-        var isLb = actor.Obj.IsCasting && limitBreakIds.Contains(actor.Obj.CastActionId);
-        if (!isLb)
+        if (!actor.Obj.IsCasting || !limitBreakLevels.TryGetValue(actor.Obj.CastActionId, out var level))
         {
             casting.Remove(key);
             return;
         }
 
-        if (!casting.Add(key) || !baselined.Contains(actor.EntityId))
-            return;
-
-        var level = LimitBreakLevel();
-        if (level is >= 1 and <= 3)
+        if (casting.Add(key) && baselined.Contains(actor.EntityId))
             Say(actor, $"limit_break_{level}");
-    }
-
-    private static unsafe int LimitBreakLevel()
-    {
-        var lb = FFXIVClientStructs.FFXIV.Client.Game.UI.LimitBreakController.Instance();
-        if (lb == null || lb->BarUnits == 0) return 0;
-        return Math.Min(lb->CurrentUnits / lb->BarUnits, (int)lb->BarCount);
     }
 
     /// <summary>Self-status and cast triggers for one voiced character.</summary>
