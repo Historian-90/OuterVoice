@@ -193,7 +193,7 @@ public sealed partial class ConfigWindow
             {
                 plugin.Subscriptions.Add(subscribeLink);
                 subscribeLink = string.Empty;
-                SetStatus("Subscribed. Downloading their pack...", false);
+                SetStatus("Subscribed. Their download status shows in the list below.", false);
             }
             catch (Exception ex)
             {
@@ -333,15 +333,24 @@ public sealed partial class ConfigWindow
 
     // ---- Helpers ------------------------------------------------------------------------------
 
+    private DateTime shareStatusAt;
+
     private void SetStatus(string text, bool isError)
     {
         shareStatus = text;
         shareStatusIsError = isError;
+        shareStatusAt = DateTime.UtcNow;
     }
 
     private void DrawShareStatus()
     {
         if (shareStatus == null) return;
+        // Success notes fade after a few seconds; errors stay until the next action.
+        if (!shareStatusIsError && DateTime.UtcNow - shareStatusAt > TimeSpan.FromSeconds(8))
+        {
+            shareStatus = null;
+            return;
+        }
         ImGui.PushTextWrapPos();
         ImGui.TextColored(shareStatusIsError ? Bad : Good, shareStatus);
         ImGui.PopTextWrapPos();

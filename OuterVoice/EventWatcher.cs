@@ -67,6 +67,12 @@ public sealed class EventWatcher : IDisposable
     // current statuses (a tank stance that's already on shouldn't trigger a line at zone-in).
     private readonly HashSet<uint> baselined = new();
 
+    // When each character was first seen. Moodles from sync plugins arrive a few seconds after a
+    // character appears, so Moodle-based custom events wait out this grace period before they can
+    // fire (otherwise a permanent Moodle would "appear" on every zone-in on friends' screens).
+    private readonly Dictionary<uint, DateTime> firstSeen = new();
+    private static readonly TimeSpan MoodleGrace = TimeSpan.FromSeconds(15);
+
     /// <summary>A party member (or you) who has a voice pack.</summary>
     private sealed record Actor(uint EntityId, string CharacterId, string Job, VoicePack Pack, IBattleChara? Obj);
 
@@ -242,7 +248,8 @@ public sealed class EventWatcher : IDisposable
             CheckCustomEvents(actor);
             CheckLimitBreak(actor);
             CheckSelfTriggers(actor);
-            baselined.Add(actor.EntityId);
+            if (baselined.Add(actor.EntityId))
+                firstSeen[actor.EntityId] = DateTime.UtcNow;
         }
 
         CheckBigPull(me);
@@ -289,6 +296,7 @@ public sealed class EventWatcher : IDisposable
             return;
 
         IReadOnlyList<string>? moodles = null; // fetched once per character per tick, only if needed
+        var settled = firstSeen.TryGetValue(actor.EntityId, out var seenAt) && DateTime.UtcNow - seenAt >= MoodleGrace;
 
         foreach (var ev in actor.Pack.CustomEvents)
         {
@@ -304,8 +312,13 @@ public sealed class EventWatcher : IDisposable
                 _ => false,
             });
 
+            // During the grace period the current state is still recorded (so an already-active
+            // Moodle never fires later), it just doesn't speak.
+            var usesMoodles = ev.Conditions.Any(c => c.Type == ConditionType.Moodle);
+            var maySpeak = baselined.Contains(actor.EntityId) && (!usesMoodles || settled);
+
             var key = (actor.EntityId, ev.Id);
-            if (allTrue && customActive.Add(key) && baselined.Contains(actor.EntityId))
+            if (allTrue && customActive.Add(key) && maySpeak)
                 Say(actor, ev.Id);
             else if (!allTrue)
                 customActive.Remove(key);
@@ -533,6 +546,7 @@ public sealed class EventWatcher : IDisposable
         tankLimitBreakSeen.Clear();
         customActive.Clear();
         baselined.Clear();
+        firstSeen.Clear();
         wasBigPull = false;
         bigPullSince = null;
     }
