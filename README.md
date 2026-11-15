@@ -68,6 +68,9 @@ name to people who open it in a browser. You can turn the link off at any time.
 - **No repeats per trigger.** The line a character last said for an event won't be picked for that
   event again until a different line for the same event has played. If an event only has one line,
   it can play again once the character has said something else in between.
+- **Quiet during scenes.** During cutscenes, NPC dialogue and loading screens (and for a few
+  seconds after), no voice or text plays, anything playing stops, and nothing is saved up to play
+  afterwards.
 - **Shared events get one speaker.** Duty start, wipes, clears, tank deaths, clutch saves and big
   pulls are voiced by one party member, picked the same way on everyone's machine (with the same
   line), so everyone hears the same thing.

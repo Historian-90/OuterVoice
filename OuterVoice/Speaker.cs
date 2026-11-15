@@ -67,8 +67,8 @@ public sealed class Speaker
                          uint speakerEntityId = 0)
     {
         var cfg = plugin.Configuration;
-        if (!force && !cfg.Enabled)
-            return null;
+        if (!force && (!cfg.Enabled || EventWatcher.Suppressed))
+            return null; // off, or a cutscene / dialogue / loading screen: drop it, don't queue it
 
         var def = pack.GetEvent(eventName);
         var now = DateTime.UtcNow;
@@ -147,6 +147,12 @@ public sealed class Speaker
     }
 
     private static string LineKey(Line l) => $"{l.Job}/{l.Id}";
+
+    /// <summary>Stops any line that's playing (and the speaker's mouth).</summary>
+    public void Silence()
+    {
+        plugin.Player.Stop();
+    }
 
     /// <summary>Test helper: play a random line from your own pack.</summary>
     public Line? Test(string eventName, string job) =>

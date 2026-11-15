@@ -73,6 +73,23 @@ public sealed class EventWatcher : IDisposable
     private readonly Dictionary<uint, DateTime> firstSeen = new();
     private static readonly TimeSpan MoodleGrace = TimeSpan.FromSeconds(15);
 
+    /// <summary>
+    /// True during cutscenes, NPC dialogue and loading screens, and for a few seconds after.
+    /// The Speaker refuses every line (voice and text) while this is set.
+    /// </summary>
+    public static bool Suppressed { get; private set; }
+
+    private DateTime suppressedUntil;
+    private static readonly TimeSpan SceneGrace = TimeSpan.FromSeconds(3);
+
+    private static bool InScene() =>
+        Plugin.Condition[ConditionFlag.OccupiedInCutSceneEvent] ||
+        Plugin.Condition[ConditionFlag.WatchingCutscene] ||
+        Plugin.Condition[ConditionFlag.WatchingCutscene78] ||
+        Plugin.Condition[ConditionFlag.OccupiedInQuestEvent] ||
+        Plugin.Condition[ConditionFlag.BetweenAreas] ||
+        Plugin.Condition[ConditionFlag.BetweenAreas51];
+
     /// <summary>A party member (or you) who has a voice pack.</summary>
     private sealed record Actor(uint EntityId, string CharacterId, string Job, VoicePack Pack, IBattleChara? Obj);
 
@@ -148,6 +165,23 @@ public sealed class EventWatcher : IDisposable
         if (now < nextTick) return;
         nextTick = now.AddMilliseconds(150);
 
+        // Cutscenes, NPC dialogue and loading screens: stay silent, and stop anything playing.
+        if (InScene())
+        {
+            if (!Suppressed)
+            {
+                Suppressed = true;
+                speaker.Silence();
+            }
+            suppressedUntil = now + SceneGrace;
+            // Forget what we'd seen, so changes that happened during the scene aren't treated as
+            // new events afterwards (no backlog of lines when it ends).
+            ResetTransientState();
+            return;
+        }
+        if (Suppressed && now >= suppressedUntil)
+            Suppressed = false;
+
         var me = Plugin.ObjectTable.LocalPlayer;
         var actors = me == null ? new List<Actor>() : Actors(me);
         if (me == null || actors.Count == 0)
@@ -155,10 +189,6 @@ public sealed class EventWatcher : IDisposable
             ResetTransientState();
             return;
         }
-
-        // Don't talk over cutscenes.
-        if (Plugin.Condition[ConditionFlag.OccupiedInCutSceneEvent] || Plugin.Condition[ConditionFlag.WatchingCutscene])
-            return;
 
         var members = Members(me).ToList();
         var byId = actors.ToDictionary(a => a.EntityId);
