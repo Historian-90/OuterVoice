@@ -78,6 +78,12 @@ jobs:
         $json = Get-Content repo.json -Raw | ConvertFrom-Json
         $json[0].AssemblyVersion = "${{ steps.ver.outputs.version }}"
         $json[0].LastUpdate = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+        # Link to this exact release, not "latest": Dalamud and GitHub cache repo.json for a few
+        # minutes, and a cached version number must still match the zip it downloads.
+        $link = "https://github.com/${{ github.repository }}/releases/download/${{ steps.ver.outputs.tag }}/latest.zip"
+        $json[0].DownloadLinkInstall = $link
+        $json[0].DownloadLinkUpdate = $link
+        $json[0].DownloadLinkTesting = $link
         ConvertTo-Json -InputObject @($json) -Depth 5 | Set-Content repo.json -Encoding utf8
         git config user.name "github-actions"
         git config user.email "github-actions@users.noreply.github.com"

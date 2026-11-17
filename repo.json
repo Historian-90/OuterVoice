@@ -17,9 +17,9 @@
     ],
     "DalamudApiLevel": 15,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/latest/download/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/latest/download/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/latest/download/latest.zip",
+    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.4.5/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.4.5/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.4.5/latest.zip",
     "LastUpdate": 1794883017
   }
 ]
