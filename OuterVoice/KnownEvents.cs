@@ -39,8 +39,8 @@ public static class KnownEvents
         new("limit_break_2", "Limit Break 2", 3, 0, "You start casting a level 2 Limit Break.", "Combat & duties"),
         new("limit_break_3", "Limit Break 3", 5, 0, "You start casting a level 3 Limit Break.", "Combat & duties"),
 
-        // Every job: weather. Fires when the weather changes while you're out in the world
-        // (not on zone-in, not in a duty or in combat).
+        // Every job: weather. Fires when the weather changes while you're out in the world, or when
+        // you arrive somewhere with inclement weather you weren't already in (not in duties or combat).
         new("weather_clear", "Clear skies", 1, 900, "The weather turns to Clear Skies or Fair Skies.", "Weather"),
         new("weather_clouds", "Clouds", 1, 900, "The weather turns cloudy (Clouds).", "Weather"),
         new("weather_fog", "Fog", 1, 900, "Fog rolls in.", "Weather"),

@@ -271,8 +271,9 @@ public sealed partial class ConfigWindow
             {
                 if (!SubSection($"lines:common:{group.Key}", group.Key)) continue;
                 if (group.Key == "Weather")
-                    HelpNote("Plays when the weather changes while you're out in the world. Not on zone-in, " +
-                             "and not in duties or combat. One voice in the party comments.");
+                    HelpNote("Plays when the weather changes while you're out in the world, or when you arrive somewhere " +
+                             "with inclement weather (anything but clear skies and clouds) that you weren't already in. " +
+                             "Not in duties or combat. One voice in the party comments.");
                 else if (group.Key == "Idle")
                     HelpNote($"Plays now and then after {plugin.Configuration.IdleMinutes}+ minutes out of combat and duties " +
                              $"(how often: Settings, currently {plugin.Configuration.IdleFrequency}).");

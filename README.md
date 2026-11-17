@@ -93,8 +93,10 @@ name to people who open it in a browser. You can turn the link off at any time.
 
 **Weather** (every job)
 
-The weather changes while you're out in the world. Zoning into a rainy area doesn't count, and
-nothing is said in duties or combat. Everyone in the zone sees the same weather, so one voice in the
+The weather changes while you're out in the world, or you arrive somewhere with inclement weather
+(anything but clear skies and clouds). Arriving doesn't repeat: teleporting from rain to more rain
+is silent, and each kind of weather plays at most once per 30 minutes on arrival. Nothing is said in
+duties or combat. Everyone in the zone sees the same weather, so one voice in the
 party comments.
 
 | Event | Weather |

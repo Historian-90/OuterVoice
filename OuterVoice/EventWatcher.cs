@@ -302,10 +302,26 @@ public sealed class EventWatcher : IDisposable
     private DateTime weatherSettleUntil;
     private static readonly TimeSpan WeatherSettle = TimeSpan.FromSeconds(10);
 
+    // Zone-in: wait out the loading screen and scene grace, then look at the weather once.
+    private DateTime? zoneInCheckAt;
+    private static readonly TimeSpan ZoneInDelay = TimeSpan.FromSeconds(5);
+
+    /// <summary>The weather you were last out in (outside duties), as a weather event name.</summary>
+    private string? lastWeatherGroup;
+
+    /// <summary>When each weather event last fired from a zone-in.</summary>
+    private readonly Dictionary<string, DateTime> zoneInSpoken = new();
+    private static readonly TimeSpan ZoneInRepeat = TimeSpan.FromMinutes(30);
+
+    /// <summary>Weather worth remarking on when you arrive in it. Clear skies and clouds aren't.</summary>
+    private static bool IsInclement(string ev) => ev is not ("weather_clear" or "weather_clouds");
+
     /// <summary>
-    /// The weather changed while you stayed in the same zone. Zoning in only records the weather
-    /// (arriving somewhere rainy isn't a change), and nothing is said in duties or combat.
-    /// Everyone in the zone sees the same weather, so one voice comments for the party.
+    /// Weather lines. A change while you stay in a zone plays a line (if the kind of weather changed).
+    /// Arriving in a zone also plays one, but only for inclement weather, only if you weren't already
+    /// out in that kind of weather (teleporting from rain to rain is silent), and at most once per
+    /// 30 minutes per kind. Nothing in duties or combat. Everyone in the zone sees the same weather,
+    /// so one voice comments for the party.
     /// </summary>
     private unsafe void CheckWeather(DateTime now, bool busy)
     {
@@ -313,24 +329,46 @@ public sealed class EventWatcher : IDisposable
         if (wm == null) return;
         var weather = wm->GetCurrentWeather();
         var territory = Plugin.ClientState.TerritoryType;
+        var inDuty = InDuty();
 
         if (territory != weatherTerritory)
         {
             weatherTerritory = territory;
             lastWeather = weather;
             weatherSettleUntil = now + WeatherSettle;
+            zoneInCheckAt = now + ZoneInDelay;
             return;
         }
+
+        if (zoneInCheckAt is { } at && now >= at)
+        {
+            zoneInCheckAt = null;
+            var ev = weather == 0 ? null : WeatherEventFor(weather);
+            if (ev != null && !inDuty)
+            {
+                var already = ev == lastWeatherGroup ||
+                              (zoneInSpoken.TryGetValue(ev, out var when) && now - when < ZoneInRepeat);
+                if (!busy && !already && IsInclement(ev))
+                {
+                    zoneInSpoken[ev] = now;
+                    SayShared(ev);
+                }
+                lastWeatherGroup = ev;
+            }
+        }
+
         if (weather == lastWeather) return;
 
         var before = lastWeather;
         lastWeather = weather;
-        if (busy || now < weatherSettleUntil || before == 0 || weather == 0) return;
+        if (weather == 0) return;
+        var changed = WeatherEventFor(weather);
+        if (!inDuty && zoneInCheckAt == null) lastWeatherGroup = changed;
+        if (busy || now < weatherSettleUntil || before == 0) return;
 
-        var ev = WeatherEventFor(weather);
         // Fair Skies to Clear Skies (and the like) isn't worth a comment.
-        if (ev != null && ev != WeatherEventFor(before))
-            SayShared(ev);
+        if (changed != null && changed != WeatherEventFor(before))
+            SayShared(changed);
     }
 
     private static string? WeatherEventFor(byte weatherId) =>
@@ -658,6 +696,7 @@ public sealed class EventWatcher : IDisposable
         firstSeen.Clear();
         wasBigPull = false;
         bigPullSince = null;
+        zoneInCheckAt = null;
         weatherTerritory = 0; // re-record the weather instead of commenting on a change we didn't watch
     }
 
