@@ -275,7 +275,7 @@ public sealed partial class ConfigWindow
                              "with inclement weather (anything but clear skies and clouds) that you weren't already in. " +
                              "Not in duties or combat. One voice in the party comments.");
                 else if (group.Key == "Idle")
-                    HelpNote($"Plays now and then after {plugin.Configuration.IdleMinutes}+ minutes out of combat and duties " +
+                    HelpNote($"Plays now and then after {plugin.Configuration.IdleMinutes}+ minutes standing still, out of combat and duties " +
                              $"(how often: Settings, currently {plugin.Configuration.IdleFrequency}).");
                 foreach (var ev in group) DrawEventLines(pack, jobLines, ev);
                 ImGui.TreePop();

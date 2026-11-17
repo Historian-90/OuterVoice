@@ -79,10 +79,10 @@ public class Configuration : IPluginConfiguration
     /// <summary>Friends' packs you follow through their Dropbox or OneDrive links.</summary>
     public List<Sync.Subscription> Subscriptions { get; set; } = new();
 
-    /// <summary>How often idle lines play once you've been out of combat and duties for a while.</summary>
+    /// <summary>How often idle lines play once you've been standing still for a while.</summary>
     public IdleFrequency IdleFrequency { get; set; } = IdleFrequency.Normal;
 
-    /// <summary>Minutes out of combat and duties before idle lines can start.</summary>
+    /// <summary>Minutes standing still (out of combat and duties) before idle lines can start.</summary>
     public int IdleMinutes { get; set; } = 5;
 
     /// <summary>Lines tab: only show events that already have lines.</summary>

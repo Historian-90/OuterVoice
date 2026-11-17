@@ -183,7 +183,7 @@ public sealed class EventWatcher : IDisposable
             Suppressed = false;
 
         var busy = Plugin.Condition[ConditionFlag.InCombat] || InDuty();
-        if (busy || Plugin.ObjectTable.LocalPlayer == null) lastBusy = now;
+        if (busy || !StandingStill()) lastBusy = now;
 
         var me = Plugin.ObjectTable.LocalPlayer;
         var actors = me == null ? new List<Actor>() : Actors(me);
@@ -376,10 +376,35 @@ public sealed class EventWatcher : IDisposable
                                        .GetRowOrDefault(weatherId)?.Name.ExtractText() ?? string.Empty);
 
     private DateTime lastBusy = DateTime.UtcNow;
+    private System.Numerics.Vector3? lastPosition;
+    private const float MoveThreshold = 0.3f; // yalms; turning on the spot or emoting doesn't count
+
+    /// <summary>
+    /// True while you're standing around: not moving, not crafting or gathering. Any of those
+    /// restarts the idle wait.
+    /// </summary>
+    private bool StandingStill()
+    {
+        var me = Plugin.ObjectTable.LocalPlayer;
+        if (me == null)
+        {
+            lastPosition = null;
+            return false;
+        }
+
+        var pos = me.Position;
+        var moved = lastPosition is not { } prev || System.Numerics.Vector3.Distance(prev, pos) > MoveThreshold;
+        lastPosition = pos;
+
+        return !moved &&
+               !Plugin.Condition[ConditionFlag.Crafting] &&
+               !Plugin.Condition[ConditionFlag.Gathering] &&
+               !Plugin.Condition[ConditionFlag.Jumping];
+    }
     private long lastIdleMinute = -1;
 
     /// <summary>
-    /// Once a minute, after a long enough quiet stretch, roll for an idle line. The roll uses the
+    /// Once a minute, after standing still (out of combat and duties) long enough, roll for an idle line. The roll uses the
     /// server minute, so friends who are idle too get the same result and the same single speaker.
     /// </summary>
     private unsafe void CheckIdle(DateTime now, bool busy)

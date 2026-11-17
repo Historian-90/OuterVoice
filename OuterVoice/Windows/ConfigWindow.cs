@@ -149,19 +149,19 @@ public sealed partial class ConfigWindow : Window
             cfg.IdleFrequency = (IdleFrequency)freq;
             cfg.Save();
         }
-        HelpMarker("Random chatter while you're out in the world: the timing varies, and it only starts after " +
-                   "you've been out of combat and duties for a while. Each idle line also has its own cooldown.");
+        HelpMarker("Random chatter while you stand around: the timing varies, and it only starts after " +
+                   "you've stood still for a while (no moving, combat, duties, crafting or gathering). Each idle line also has its own cooldown.");
 
         if (cfg.IdleFrequency != IdleFrequency.Off)
         {
             var mins = cfg.IdleMinutes;
             ImGui.SetNextItemWidth(160);
-            if (ImGui.SliderInt("Quiet time first", ref mins, 2, 30, "%d min"))
+            if (ImGui.SliderInt("Stand still for", ref mins, 2, 30, "%d min"))
             {
                 cfg.IdleMinutes = mins;
                 cfg.Save();
             }
-            HelpMarker("Idle lines wait this long after your last fight or duty.");
+            HelpMarker("How long you must stand still before idle lines can play. Moving, fighting, a duty, crafting or gathering starts the wait over.");
         }
 
         Section("Text");

@@ -114,8 +114,10 @@ party comments.
 
 **Idle** (every job)
 
-Random chatter after a long stretch out of combat and duties. On the Settings tab, choose how often
-(Off, Rare, Normal, Frequent) and how long to wait after your last fight or duty (default 5 minutes).
+Random chatter while you're standing around. It only starts after you've stood still for a while:
+moving, fighting, a duty, crafting or gathering starts the wait over (turning on the spot and emotes
+don't). On the Settings tab, choose how often (Off, Rare, Normal, Frequent) and how long you must
+stand still first (default 5 minutes).
 Friends who are idle too hear the same line from the same one voice.
 
 **Job-specific**

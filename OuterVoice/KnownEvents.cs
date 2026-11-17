@@ -53,7 +53,7 @@ public static class KnownEvents
         new("weather_gloom", "Gloom", 1, 900, "Gloom, umbral weather or anything stranger (Auroras, Moon Dust...).", "Weather"),
 
         // Every job: idle
-        new("idle", "Idle", 1, 300, "Every now and then, after a long stretch out of combat and out of duties. Set how often under Settings.", "Idle"),
+        new("idle", "Idle", 1, 300, "Every now and then, after you've stood still for a while (no moving, combat, duties, crafting or gathering). Set how often under Settings.", "Idle"),
 
         // Job-specific (which jobs have them is defined in JobTriggers)
         new("burst", "Burst window", 2, 100, "You pop your big damage or raid buff."),
