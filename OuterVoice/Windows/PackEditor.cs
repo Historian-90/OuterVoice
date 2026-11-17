@@ -269,7 +269,9 @@ public sealed partial class ConfigWindow
             foreach (var group in common.GroupBy(e => e.Category ?? KnownEvents.CommonCategories[0])
                                         .OrderBy(g => Array.IndexOf(KnownEvents.CommonCategories, g.Key)))
             {
-                if (!SubSection($"lines:common:{group.Key}", group.Key)) continue;
+                var groupLines = group.Sum(e => jobLines.Count(l => l.Event == e.Name));
+                if (!SubSection($"lines:common:{group.Key}",
+                                $"{group.Key}  ({groupLines} line{(groupLines == 1 ? "" : "s")})")) continue;
                 if (group.Key == "Weather")
                     HelpNote("Plays when the weather changes while you're out in the world, or when you arrive somewhere " +
                              "with inclement weather (anything but clear skies and clouds) that you weren't already in. " +
@@ -288,7 +290,16 @@ public sealed partial class ConfigWindow
                 else if (group.Key == "Idle")
                     HelpNote($"Plays now and then after {plugin.Configuration.IdleMinutes}+ minutes standing still, out of combat and duties " +
                              $"(how often: Settings, currently {plugin.Configuration.IdleFrequency}).");
-                foreach (var ev in group) DrawEventLines(pack, jobLines, ev);
+                foreach (var nested in group.Where(e => e.Group != null).GroupBy(e => e.Group!))
+                {
+                    var n = nested.Sum(e => jobLines.Count(l => l.Event == e.Name));
+                    if (!NestedGroup($"lines:common:{group.Key}:{nested.Key}", $"{nested.Key}  ({n} line{(n == 1 ? "" : "s")})"))
+                        continue;
+                    foreach (var ev in nested)
+                        DrawEventLines(pack, jobLines, ev, ShortLabel(ev, nested.Key));
+                    ImGui.TreePop();
+                }
+                foreach (var ev in group.Where(e => e.Group == null)) DrawEventLines(pack, jobLines, ev);
                 ImGui.TreePop();
             }
         }
@@ -441,11 +452,11 @@ public sealed partial class ConfigWindow
         Changed();
     }
 
-    private void DrawEventLines(VoicePack pack, List<Line> jobLines, KnownEvents.Info ev)
+    private void DrawEventLines(VoicePack pack, List<Line> jobLines, KnownEvents.Info ev, string? label = null)
     {
         var evLines = jobLines.Where(l => l.Event == ev.Name).ToList();
         var rec = evLines.Count(l => l.AudioPath != null);
-        var header = $"{ev.Label}  ({rec}/{evLines.Count} recorded)###ev_{ev.Name}";
+        var header = $"{label ?? ev.Label}  ({rec}/{evLines.Count} recorded)###ev_{ev.Name}";
 
         if (ev.Name == focusEvent || lineSearch.Trim().Length > 0)
         {
@@ -534,6 +545,29 @@ public sealed partial class ConfigWindow
         if (nowOpen != open)
         {
             if (nowOpen) collapsed.Remove(id); else collapsed.Add(id);
+            plugin.Configuration.Save();
+        }
+        return nowOpen;
+    }
+
+    /// <summary>"City: Kugane" reads as "Kugane" inside the Cities group; plain "City" is the fallback.</summary>
+    private static string ShortLabel(KnownEvents.Info ev, string group) =>
+        group == "Cities"
+            ? ev.Label == "City" ? "Any city (plays where a city has no lines)" : ev.Label.Replace("City: ", "")
+            : ev.Label;
+
+    /// <summary>A group inside a category (Cities, Housing), closed by default. Caller must TreePop() when true.</summary>
+    private bool NestedGroup(string id, string title)
+    {
+        var sections = plugin.Configuration.CollapsedSections; // for these, holds the *opened* ones
+        var key = id + ":open";
+        var searching = lineSearch.Trim().Length > 0;
+        var open = sections.Contains(key) || searching;
+        ImGui.SetNextItemOpen(open);
+        var nowOpen = ImGui.TreeNodeEx($"{title}###{id}", ImGuiTreeNodeFlags.SpanAvailWidth);
+        if (nowOpen != open && !searching)
+        {
+            if (nowOpen) sections.Add(key); else sections.Remove(key);
             plugin.Configuration.Save();
         }
         return nowOpen;
