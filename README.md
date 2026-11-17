@@ -91,6 +91,16 @@ name to people who open it in a browser. You can turn the link off at any time.
 | Duty complete / Clean clear | Duty cleared (clean = no deaths) |
 | Limit Break 1 / 2 / 3 | You start casting a Limit Break (works without a gauge too, e.g. Explorer Mode) |
 
+**Social** (every job)
+
+| Event | When it fires |
+|---|---|
+| Joining a party | You join someone else's party (normal or cross-world) |
+
+Only the person who joins speaks: you when you join someone's party, and a friend with a pack (in
+their voice) when they join yours. Forming a party by inviting someone doesn't play your line, and
+Duty Finder groups don't count.
+
 **Treasure** (every job)
 
 | Event | When it fires |
@@ -170,7 +180,7 @@ deleting them, and use **Edit lines ->** / **Edit trigger** to jump between an e
 
 ## Staying organized
 
-The Lines tab is split into **Every job** (Combat & duties, Treasure, Weather, Idle), **Job abilities** (on a
+The Lines tab is split into **Every job** (Combat & duties, Social, Treasure, Weather, Idle), **Job abilities** (on a
 job's page) and **Custom events** (by category),
 and remembers which sections you've collapsed. Use the search box to find events or line text, and
 **Hide empty** to show only events that already have lines (add lines to the others with

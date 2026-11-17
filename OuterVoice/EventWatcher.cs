@@ -174,6 +174,7 @@ public sealed class EventWatcher : IDisposable
                 speaker.Silence();
             }
             suppressedUntil = now + SceneGrace;
+            partySettleUntil = now + PartySettle;
             // Forget what we'd seen, so changes that happened during the scene aren't treated as
             // new events afterwards (no backlog of lines when it ends).
             ResetTransientState();
@@ -186,6 +187,7 @@ public sealed class EventWatcher : IDisposable
         if (busy || !StandingStill()) lastBusy = now;
 
         var me = Plugin.ObjectTable.LocalPlayer;
+        CheckParty(now, me);
         var actors = me == null ? new List<Actor>() : Actors(me);
         if (me == null || actors.Count == 0)
         {
@@ -289,6 +291,126 @@ public sealed class EventWatcher : IDisposable
         CheckChests(me);
         CheckWeather(now, busy);
         CheckIdle(now, busy);
+    }
+
+    // ---- Joining a party ------------------------------------------------------------------
+
+    private sealed record PartyMember(string CharacterId, string? Job, uint EntityId);
+    private sealed record PartySnapshot(Dictionary<string, PartyMember> Others, bool IAmLeader)
+    {
+        public bool Same(PartySnapshot o) =>
+            IAmLeader == o.IAmLeader && Others.Count == o.Others.Count && Others.Keys.All(o.Others.ContainsKey);
+    }
+
+    private PartySnapshot? partyCommitted;
+    private PartySnapshot? partyPending;
+    private DateTime partyPendingSince;
+    private static readonly TimeSpan PartyHold = TimeSpan.FromSeconds(2);
+    private DateTime partySettleUntil;
+    private static readonly TimeSpan PartySettle = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Someone joins a party, and the joiner says the line: you, when you join someone else's
+    /// party; a friend with a voice pack, when they join yours (or the one you're in). Each player's
+    /// plugin sees the same change, so everyone hears the joiner once. Duties are ignored (Duty
+    /// Finder fills the party), and the party is frozen while you're in one, so coming back out
+    /// to the party you queued with isn't a "join". A change must hold for 2 seconds to count.
+    /// </summary>
+    private void CheckParty(DateTime now, IPlayerCharacter? me)
+    {
+        if (me == null)
+        {
+            partyCommitted = partyPending = null;
+            partySettleUntil = now + PartySettle;
+            return;
+        }
+        if (InDuty()) return;
+
+        var snap = ReadParty(me);
+        if (partyCommitted == null || now < partySettleUntil)
+        {
+            // Just logged in or came out of a loading screen: the party list can fill in a few
+            // seconds late, so only record it for now.
+            partyCommitted = snap;
+            partyPending = null;
+            return;
+        }
+        if (partyPending == null || !partyPending.Same(snap))
+        {
+            partyPending = snap;
+            partyPendingSince = now;
+            return;
+        }
+        if (now - partyPendingSince < PartyHold || partyCommitted.Same(snap)) return;
+
+        var before = partyCommitted;
+        partyCommitted = snap;
+
+        // You joined someone's party: you weren't in one, and you're not the leader of this one.
+        if (before.Others.Count == 0 && snap.Others.Count > 0 && !snap.IAmLeader)
+        {
+            var myJob = JobAbbrev(me.ClassJob.RowId);
+            if (speaker.Pack is { } mine && myJob != null && speaker.SpeaksOn(mine, myJob))
+                Say(new Actor(me.EntityId, Plugin.CurrentCharacterId() ?? "me", myJob, mine, me), "party_join");
+            return; // everyone else was already there
+        }
+
+        // Friends who joined the party you're in (or formed with you as leader).
+        if (!Plugin.Instance.Configuration.HearFriends) return;
+        foreach (var (id, m) in snap.Others)
+        {
+            if (before.Others.ContainsKey(id) || m.Job == null) continue;
+            if (speaker.FriendPack(id) is not { } pack || !speaker.SpeaksOn(pack, m.Job)) continue;
+            var obj = Plugin.ObjectTable.FirstOrDefault(o => o.EntityId == m.EntityId && m.EntityId != 0) as IBattleChara;
+            Say(new Actor(m.EntityId, id, m.Job, pack, obj), "party_join");
+        }
+    }
+
+    /// <summary>Everyone else in your party (normal or cross-world), and whether you lead it.</summary>
+    private static unsafe PartySnapshot ReadParty(IPlayerCharacter me)
+    {
+        var others = new Dictionary<string, PartyMember>(StringComparer.OrdinalIgnoreCase);
+        var leader = false;
+
+        if (Plugin.PartyList.Length > 0)
+        {
+            for (var i = 0; i < Plugin.PartyList.Length; i++)
+            {
+                var m = Plugin.PartyList[i];
+                if (m == null) continue;
+                if (m.EntityId == me.EntityId)
+                {
+                    leader = Plugin.PartyList.PartyLeaderIndex == i;
+                    continue;
+                }
+                var world = m.World.ValueNullable?.Name.ExtractText();
+                var id = string.IsNullOrEmpty(world) ? m.Name.TextValue : $"{m.Name.TextValue}@{world}";
+                others[id] = new PartyMember(id, JobAbbrev(m.ClassJob.RowId), m.EntityId);
+            }
+        }
+        else if (FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.IsCrossRealmParty())
+        {
+            // Cross-world parties (Party Finder) out in the world aren't in the normal party list.
+            var proxy = FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.Instance();
+            if (proxy != null)
+            {
+                leader = FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.IsLocalPlayerPartyLeader();
+                var group = proxy->LocalPlayerGroupIndex;
+                var count = FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.GetGroupMemberCount(group);
+                for (uint i = 0; i < count; i++)
+                {
+                    var m = FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.GetGroupMember(i, group);
+                    if (m == null || m->EntityId == me.EntityId) continue;
+                    var name = m->NameString;
+                    if (string.IsNullOrEmpty(name) || name == me.Name.TextValue && m->EntityId == 0) continue;
+                    var world = Plugin.DataManager.GetExcelSheet<World>().GetRowOrDefault((uint)m->HomeWorld)?.Name.ExtractText();
+                    var id = string.IsNullOrEmpty(world) ? name : $"{name}@{world}";
+                    others[id] = new PartyMember(id, JobAbbrev(m->ClassJobId), m->EntityId);
+                }
+            }
+        }
+
+        return new PartySnapshot(others, leader);
     }
 
     // ---- Treasure coffers ------------------------------------------------------------------

@@ -39,6 +39,9 @@ public static class KnownEvents
         new("limit_break_2", "Limit Break 2", 3, 0, "You start casting a level 2 Limit Break.", "Combat & duties"),
         new("limit_break_3", "Limit Break 3", 5, 0, "You start casting a level 3 Limit Break.", "Combat & duties"),
 
+        // Every job: social
+        new("party_join", "Joining a party", 2, 60, "You join someone's party. Friends with packs say their own line when they join yours.", "Social"),
+
         // Every job: treasure
         new("chest_open", "Treasure coffer", 2, 20, "A treasure coffer within 15 yalms opens (dungeons, raids, and anywhere else).", "Treasure"),
         new("chest_map", "Treasure map coffer", 3, 20, "A treasure map coffer within 15 yalms opens.", "Treasure"),
@@ -72,7 +75,7 @@ public static class KnownEvents
     ];
 
     /// <summary>Subsections of EVERY JOB, in display order.</summary>
-    public static readonly string[] CommonCategories = ["Combat & duties", "Treasure", "Weather", "Idle"];
+    public static readonly string[] CommonCategories = ["Combat & duties", "Social", "Treasure", "Weather", "Idle"];
 
     /// <summary>
     /// The weather event for a weather name from the game's Weather sheet. Anything not listed
