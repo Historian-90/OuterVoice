@@ -43,8 +43,8 @@ public static class KnownEvents
         new("party_join", "Joining a party", 2, 60, "You join someone's party. Friends with packs say their own line when they join yours.", "Social"),
 
         // Every job: treasure
-        new("chest_open", "Treasure coffer", 2, 20, "A treasure coffer within 15 yalms opens (dungeons, raids, and anywhere else).", "Treasure"),
-        new("chest_map", "Treasure map coffer", 3, 20, "A treasure map coffer within 15 yalms opens.", "Treasure"),
+        new("chest_open", "Treasure coffer", 2, 20, "You open a treasure coffer (dungeons, raids, and anywhere else). Coffers other people open don't count.", "Treasure"),
+        new("chest_map", "Treasure map coffer", 3, 20, "You open a treasure map coffer.", "Treasure"),
 
         // Every job: weather. Fires when the weather changes while you're out in the world, or when
         // you arrive somewhere with inclement weather you weren't already in (not in duties or combat).

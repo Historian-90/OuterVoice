@@ -105,11 +105,11 @@ Duty Finder groups don't count.
 
 | Event | When it fires |
 |---|---|
-| Treasure coffer | A treasure coffer within 15 yalms opens (dungeons, raids, and anywhere else) |
-| Treasure map coffer | A treasure map coffer within 15 yalms opens |
+| Treasure coffer | You open a treasure coffer (dungeons, raids, and anywhere else) |
+| Treasure map coffer | You open a treasure map coffer |
 
-The game doesn't say who opened a coffer, and the whole party sees it open, so one voice comments.
-Coffers that are already open when you arrive don't count.
+Only the person who opens the coffer speaks (you, or a friend with a pack when they open one).
+Coffers other people open stay silent, and so do coffers that are already open when you arrive.
 
 **Weather** (every job)
 

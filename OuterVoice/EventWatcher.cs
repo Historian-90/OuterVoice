@@ -288,7 +288,7 @@ public sealed class EventWatcher : IDisposable
         }
 
         CheckBigPull(me);
-        CheckChests(me);
+        CheckChests(actors, now);
         CheckWeather(now, busy);
         CheckIdle(now, busy);
     }
@@ -415,18 +415,28 @@ public sealed class EventWatcher : IDisposable
 
     // ---- Treasure coffers ------------------------------------------------------------------
 
-    private const float ChestRange = 15f;
+    private const float ChestReach = 8f; // yalms; you have to be next to a coffer to open it
+    private static readonly TimeSpan ChestTargetMemory = TimeSpan.FromSeconds(3);
 
     /// <summary>Coffers we've seen, and whether each one was already open.</summary>
     private readonly Dictionary<ulong, bool> chestOpened = new();
 
+    /// <summary>What each voiced character last had targeted, and when.</summary>
+    private readonly Dictionary<uint, (ulong Target, DateTime At)> lastTarget = new();
+
     /// <summary>
-    /// A treasure coffer near you opens. The game doesn't say who opened it, and the whole party
-    /// sees it open, so it's a shared event: one voice comments. Coffers that were already open
-    /// when they came into view (zone-in, rejoining) are only recorded.
+    /// A treasure coffer opens, and whoever opened it says the line. Opening a coffer means
+    /// targeting it and interacting from close by, so the opener is the voiced character (you, or
+    /// a friend with a pack) who had it targeted in the last few seconds and is standing next to it.
+    /// Coffers other people open stay silent. Coffers already open when they come into view are
+    /// only recorded.
     /// </summary>
-    private unsafe void CheckChests(IPlayerCharacter me)
+    private unsafe void CheckChests(List<Actor> actors, DateTime now)
     {
+        foreach (var a in actors)
+            if (a.Obj is { TargetObjectId: not 0 and not 0xE0000000 } o)
+                lastTarget[a.EntityId] = (o.TargetObjectId, now);
+
         var seen = new HashSet<ulong>();
         foreach (var obj in Plugin.ObjectTable)
         {
@@ -439,11 +449,15 @@ public sealed class EventWatcher : IDisposable
             var open = t->State != FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureState.Unopened ||
                        t->Flags.HasFlag(FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureFlags.Opened);
 
-            if (chestOpened.TryGetValue(id, out var wasOpen) && !wasOpen && open &&
-                System.Numerics.Vector3.Distance(me.Position, obj.Position) <= ChestRange)
+            if (chestOpened.TryGetValue(id, out var wasOpen) && !wasOpen && open)
             {
-                SayShared(t->CofferKind == FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureKind.TreasureHunt
-                              ? "chest_map" : "chest_open");
+                var opener = actors.FirstOrDefault(a =>
+                    a.Obj != null &&
+                    lastTarget.TryGetValue(a.EntityId, out var lt) && (lt.Target == id || (obj.EntityId != 0 && (uint)lt.Target == obj.EntityId)) && now - lt.At <= ChestTargetMemory &&
+                    System.Numerics.Vector3.Distance(a.Obj.Position, obj.Position) <= ChestReach);
+                if (opener != null)
+                    Say(opener, t->CofferKind == FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureKind.TreasureHunt
+                                    ? "chest_map" : "chest_open");
             }
             chestOpened[id] = open;
         }
@@ -881,6 +895,7 @@ public sealed class EventWatcher : IDisposable
         tankLimitBreakSeen.Clear();
         customActive.Clear();
         chestOpened.Clear();
+        lastTarget.Clear();
         baselined.Clear();
         firstSeen.Clear();
         wasBigPull = false;
