@@ -198,6 +198,7 @@ public sealed class EventWatcher : IDisposable
         }
 
         var members = Members(me).ToList();
+        currentMembers = members;
         var byId = actors.ToDictionary(a => a.EntityId);
 
         partnersSeen.Clear();
@@ -725,7 +726,9 @@ public sealed class EventWatcher : IDisposable
             var allTrue = ev.Conditions.All(c => c.Type switch
             {
                 ConditionType.Cast => actor.Obj.IsCasting && NameMatches(ActionName(actor.Obj.CastActionId), c.Value),
-                ConditionType.Status => actor.Obj.StatusList.Any(st => NameMatches(StatusName(st.StatusId), c.Value)),
+                ConditionType.Status => c.Scope == ConditionScope.Target
+                    ? GaveStatus(actor, c.Value)
+                    : actor.Obj.StatusList.Any(st => NameMatches(StatusName(st.StatusId), c.Value)),
                 ConditionType.Emote => EmoteNamesOf(actor.Obj).Any(n => NameMatches(n, c.Value)),
                 ConditionType.Moodle => (moodles ??= MoodlesIpc.TitlesOn(actor.Obj.Address))
                                         .Any(t => NameMatches(t, MoodlesIpc.Clean(c.Value))),
@@ -760,6 +763,27 @@ public sealed class EventWatcher : IDisposable
             else if (!allTrue)
                 customActive.Remove(key);
         }
+    }
+
+    private List<Member> currentMembers = new();
+
+    /// <summary>
+    /// The actor put this status on someone else: any party member (or Duty Support NPC), or
+    /// whoever the actor has targeted. Only statuses from the actor count.
+    /// </summary>
+    private bool GaveStatus(Actor actor, string wanted)
+    {
+        bool On(StatusList? list) =>
+            list != null && list.Any(st => st.SourceId == actor.EntityId && NameMatches(StatusName(st.StatusId), wanted));
+
+        foreach (var m in currentMembers)
+            if (m.EntityId != actor.EntityId && On(m.Statuses))
+                return true;
+
+        var targetId = actor.Obj?.TargetObjectId ?? 0;
+        if (targetId is 0 or 0xE0000000) return false;
+        var target = Plugin.ObjectTable.SearchById(targetId) as IBattleChara;
+        return target != null && target.EntityId != actor.EntityId && On(target.StatusList);
     }
 
     private static bool NameMatches(string actual, string wanted) =>

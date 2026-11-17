@@ -167,7 +167,8 @@ On the **Custom Events** tab you can make your own triggers. A custom event play
 **all** of its conditions are true at the same time. Conditions can be:
 
 - **Casting** an action (anything with a cast bar)
-- **Has status**: a game buff or debuff on you
+- **Has status**: a game buff or debuff on you. Pick **Player (You)** for a status on you, or **Target** for one you
+  put on someone else (a party member or your target), like Haima
 - **Doing emote**: e.g. `wave` or `/wave`
 - **Has Moodle**: a custom status from the Moodles plugin (needs Moodles; friends' Moodles count
   when they're synced to you)
@@ -175,6 +176,9 @@ On the **Custom Events** tab you can make your own triggers. A custom event play
 - **Weather is**: the current weather is of a kind (Rain, Snow, Fog...)
 - **Idle for**: you've been standing still (out of combat and duties) for at least N minutes
 - **Joins a party**: you just joined someone's party
+
+When a custom event and a built-in event fire for the same moment (a custom "Panhaimatinon" event
+and Sage's Big heal line, say), the custom line wins.
 
 A custom event built on **Opens coffer** or **Joins a party** plays *instead of* the built-in
 coffer or party line, so e.g. "Opens coffer + Has Moodle *Greedy*" can replace the usual line when

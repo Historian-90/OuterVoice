@@ -11,6 +11,8 @@ public sealed partial class ConfigWindow
     private static readonly string[] ConditionLabels =
         ["Casting", "Has status", "Doing emote", "Has Moodle", "Opens coffer", "Weather is", "Idle for", "Joins a party"];
 
+    private static readonly string[] ScopeLabels = ["Player (You)", "Target"];
+
     private static readonly string[] CofferValues = [CustomCondition.CofferAny, CustomCondition.CofferRegular, CustomCondition.CofferMap];
     private static readonly string[] CofferLabels = ["Any coffer", "Regular coffer", "Treasure map coffer"];
 
@@ -267,6 +269,22 @@ public sealed partial class ConfigWindow
             else
             {
                 ImGui.Dummy(new Vector2(ImGui.CalcTextSize("and").X, 0));
+                ImGui.SameLine();
+            }
+
+            if (c.Type == ConditionType.Status)
+            {
+                var scope = (int)c.Scope;
+                ImGui.SetNextItemWidth(110);
+                if (ImGui.Combo("##scope", ref scope, ScopeLabels, ScopeLabels.Length))
+                {
+                    c.Scope = (ConditionScope)scope;
+                    Changed();
+                }
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Player (You): the status is on you, from anyone.\n" +
+                                     "Target: you put it on someone else (a party member, or whoever you're targeting).\n" +
+                                     "Use Target for buffs you give others, like Haima.");
                 ImGui.SameLine();
             }
 

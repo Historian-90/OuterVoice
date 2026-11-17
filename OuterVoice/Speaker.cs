@@ -17,6 +17,18 @@ public sealed class Speaker
     private readonly Dictionary<string, DateTime> lastEventTime = new();
     private DateTime lastAnyLine = DateTime.MinValue;
 
+    /// <summary>Who started the current line, when, and whether it was a custom event.</summary>
+    private (string Voice, DateTime At, bool Custom) lastStart;
+
+    /// <summary>
+    /// A custom event is more specific than a built-in one, so if both fire for the same moment
+    /// (Panhaima's big-heal line and a custom "Panhaimatinon" event, say), the custom line wins
+    /// as long as it comes within this long of the built-in one starting.
+    /// </summary>
+    private static readonly TimeSpan CustomOverrideWindow = TimeSpan.FromSeconds(1.5);
+
+    private static bool IsCustomId(string eventName) => eventName.StartsWith("custom_", StringComparison.Ordinal);
+
     // Repeat protection:
     //  - per trigger: the last line a character said for an event can't be picked for that event
     //    again until a different line for the same event has played;
@@ -80,7 +92,9 @@ public sealed class Speaker
             var player = plugin.Player;
 
             // One voice at a time: only a more urgent line may cut in (replacing, never overlapping).
-            var interrupts = player.IsPlaying && def.Priority > player.CurrentPriority;
+            var overridesBuiltIn = IsCustomId(eventName) && !lastStart.Custom && lastStart.Voice == pack.Character &&
+                                   now - lastStart.At <= CustomOverrideWindow;
+            var interrupts = (player.IsPlaying && def.Priority > player.CurrentPriority) || overridesBuiltIn;
             if (player.IsPlaying && !interrupts)
                 return null;
             if (!interrupts && (now - lastAnyLine).TotalSeconds < globalCd)
@@ -126,6 +140,7 @@ public sealed class Speaker
 
         lastEventTime[cooldownKey] = now;
         lastAnyLine = now;
+        lastStart = (pack.Character, now, IsCustomId(eventName));
 
         if (line.AudioPath != null)
         {

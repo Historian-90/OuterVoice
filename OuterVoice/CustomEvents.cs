@@ -31,10 +31,26 @@ public enum ConditionType
     JoinParty,
 }
 
+/// <summary>Who a "Has status" condition looks at.</summary>
+public enum ConditionScope
+{
+    /// <summary>The status is on you (from anyone).</summary>
+    You,
+
+    /// <summary>
+    /// You put the status on someone else: a party member (or Duty Support NPC), or your current
+    /// target. For targeted buffs like Haima.
+    /// </summary>
+    Target,
+}
+
 public class CustomCondition
 {
     public ConditionType Type { get; set; } = ConditionType.Emote;
     public string Value { get; set; } = string.Empty;
+
+    /// <summary>For "Has status": on you, or on someone you gave it to.</summary>
+    public ConditionScope Scope { get; set; } = ConditionScope.You;
 
     /// <summary>The value a newly picked condition type starts with (empty means "type something").</summary>
     public static string DefaultValue(ConditionType type) => type switch
@@ -87,7 +103,9 @@ public class CustomEvent
     public static string Describe(CustomCondition c) => c.Type switch
     {
         ConditionType.Cast => $"casting {Quote(c.Value)}",
-        ConditionType.Status => $"you have {Quote(c.Value)}",
+        ConditionType.Status => c.Scope == ConditionScope.Target
+            ? $"you give {Quote(c.Value)} to someone"
+            : $"you have {Quote(c.Value)}",
         ConditionType.Emote => $"doing /{(c.Value.Length > 0 ? c.Value.TrimStart('/') : "?")}",
         ConditionType.Moodle => $"Moodle {Quote(c.Value)}",
         ConditionType.OpenCoffer => c.Value switch
