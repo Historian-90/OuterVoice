@@ -91,6 +91,16 @@ name to people who open it in a browser. You can turn the link off at any time.
 | Duty complete / Clean clear | Duty cleared (clean = no deaths) |
 | Limit Break 1 / 2 / 3 | You start casting a Limit Break (works without a gauge too, e.g. Explorer Mode) |
 
+**Treasure** (every job)
+
+| Event | When it fires |
+|---|---|
+| Treasure coffer | A treasure coffer within 15 yalms opens (dungeons, raids, and anywhere else) |
+| Treasure map coffer | A treasure map coffer within 15 yalms opens |
+
+The game doesn't say who opened a coffer, and the whole party sees it open, so one voice comments.
+Coffers that are already open when you arrive don't count.
+
 **Weather** (every job)
 
 The weather changes while you're out in the world, or you arrive somewhere with inclement weather
@@ -160,7 +170,7 @@ deleting them, and use **Edit lines ->** / **Edit trigger** to jump between an e
 
 ## Staying organized
 
-The Lines tab is split into **Every job** (Combat & duties, Weather, Idle), **Job abilities** (on a
+The Lines tab is split into **Every job** (Combat & duties, Treasure, Weather, Idle), **Job abilities** (on a
 job's page) and **Custom events** (by category),
 and remembers which sections you've collapsed. Use the search box to find events or line text, and
 **Hide empty** to show only events that already have lines (add lines to the others with

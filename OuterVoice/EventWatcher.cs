@@ -286,8 +286,49 @@ public sealed class EventWatcher : IDisposable
         }
 
         CheckBigPull(me);
+        CheckChests(me);
         CheckWeather(now, busy);
         CheckIdle(now, busy);
+    }
+
+    // ---- Treasure coffers ------------------------------------------------------------------
+
+    private const float ChestRange = 15f;
+
+    /// <summary>Coffers we've seen, and whether each one was already open.</summary>
+    private readonly Dictionary<ulong, bool> chestOpened = new();
+
+    /// <summary>
+    /// A treasure coffer near you opens. The game doesn't say who opened it, and the whole party
+    /// sees it open, so it's a shared event: one voice comments. Coffers that were already open
+    /// when they came into view (zone-in, rejoining) are only recorded.
+    /// </summary>
+    private unsafe void CheckChests(IPlayerCharacter me)
+    {
+        var seen = new HashSet<ulong>();
+        foreach (var obj in Plugin.ObjectTable)
+        {
+            if (obj.ObjectKind != ObjectKind.Treasure) continue;
+            var t = (FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure*)obj.Address;
+            if (t == null) continue;
+
+            var id = obj.GameObjectId;
+            seen.Add(id);
+            var open = t->State != FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureState.Unopened ||
+                       t->Flags.HasFlag(FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureFlags.Opened);
+
+            if (chestOpened.TryGetValue(id, out var wasOpen) && !wasOpen && open &&
+                System.Numerics.Vector3.Distance(me.Position, obj.Position) <= ChestRange)
+            {
+                SayShared(t->CofferKind == FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureKind.TreasureHunt
+                              ? "chest_map" : "chest_open");
+            }
+            chestOpened[id] = open;
+        }
+
+        if (chestOpened.Count > seen.Count)
+            foreach (var gone in chestOpened.Keys.Where(k => !seen.Contains(k)).ToList())
+                chestOpened.Remove(gone);
     }
 
     // ---- Weather and idle ------------------------------------------------------------------
@@ -717,6 +758,7 @@ public sealed class EventWatcher : IDisposable
         casting.Clear();
         tankLimitBreakSeen.Clear();
         customActive.Clear();
+        chestOpened.Clear();
         baselined.Clear();
         firstSeen.Clear();
         wasBigPull = false;
