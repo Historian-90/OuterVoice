@@ -30,7 +30,8 @@ public static class SafeDownloader
     }
 
     public static async Task<Result> DownloadAsync(Uri url, string? etag, string destFile, CancellationToken token,
-                                                   Func<string, bool> isAllowedHost, string serviceName)
+                                                   Func<string, bool> isAllowedHost, string serviceName,
+                                                   Action<long, long?>? progress = null)
     {
         var current = url;
         for (var hop = 0; hop < 6; hop++)
@@ -63,6 +64,8 @@ public static class SafeDownloader
                 throw new InvalidOperationException("That pack is too large (over 200 MB).");
 
             var newEtag = response.Headers.ETag?.ToString() ?? string.Empty;
+            var length = response.Content.Headers.ContentLength;
+            progress?.Invoke(0, length);
             await using (var input = await response.Content.ReadAsStreamAsync(token))
             await using (var output = File.Create(destFile))
             {
@@ -75,6 +78,7 @@ public static class SafeDownloader
                     if (total > PackSharing.MaxZipBytes)
                         throw new InvalidOperationException("That pack is too large (over 200 MB).");
                     await output.WriteAsync(buffer.AsMemory(0, read), token);
+                    progress?.Invoke(total, length);
                 }
             }
 

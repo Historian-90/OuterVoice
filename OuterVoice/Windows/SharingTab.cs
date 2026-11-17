@@ -205,8 +205,21 @@ public sealed partial class ConfigWindow
                    "Only Dropbox and personal OneDrive links are accepted, downloads must be zip packs, and a link\n" +
                    "can never switch to voicing a different character than the one it first delivered.");
         ImGui.SameLine();
-        if (ImGui.SmallButton("Check now"))
-            plugin.Subscriptions.CheckAll();
+        var subs = plugin.Subscriptions;
+        if (subs.Remaining > 0)
+        {
+            ImGui.BeginDisabled();
+            ImGui.SmallButton($"Checking {subs.RoundTotal - subs.Remaining + 1} of {subs.RoundTotal}{Dots()}");
+            ImGui.EndDisabled();
+        }
+        else if (ImGui.SmallButton("Check now"))
+        {
+            subs.CheckAllNow();
+        }
+
+        if (subs.ManualResult != null &&
+            (subs.ManualResultIsError || DateTime.UtcNow - subs.ManualResultAt < TimeSpan.FromSeconds(20)))
+            ImGui.TextColored(subs.ManualResultIsError ? Bad : Good, subs.ManualResult);
 
         DrawShareStatus();
 
@@ -223,7 +236,17 @@ public sealed partial class ConfigWindow
         foreach (var sub in waiting)
         {
             ImGui.PushID(sub.Link);
-            ImGui.TextColored(sub.StatusIsError ? Bad : Muted, $"Pending link: {sub.Status}");
+            if (sub.Activity is { } activity)
+            {
+                if (sub.Progress >= 0)
+                    ImGui.ProgressBar(sub.Progress, new Vector2(200, 0), activity);
+                else
+                    ImGui.TextColored(Good, $"New link: {activity}{Dots()}");
+            }
+            else
+            {
+                ImGui.TextColored(sub.StatusIsError ? Bad : Muted, $"Pending link: {sub.Status}");
+            }
             ImGui.SameLine();
             if (ImGui.SmallButton("Remove"))
                 plugin.Subscriptions.Remove(sub);
@@ -282,6 +305,13 @@ public sealed partial class ConfigWindow
                     if (ImGui.SmallButton("Update"))
                         _ = plugin.Subscriptions.ApplyPendingAsync(sub);
                 }
+                else if (sub.Activity is { } activity)
+                {
+                    if (sub.Progress >= 0)
+                        ImGui.ProgressBar(sub.Progress, new Vector2(200, 0), activity);
+                    else
+                        ImGui.TextColored(Good, activity + Dots());
+                }
                 else
                 {
                     ImGui.TextColored(sub.StatusIsError ? Bad : Muted, $"{sub.Service}: {sub.Status}");
@@ -334,6 +364,9 @@ public sealed partial class ConfigWindow
     // ---- Helpers ------------------------------------------------------------------------------
 
     private DateTime shareStatusAt;
+
+    /// <summary>Animated "..." so a waiting state visibly ticks.</summary>
+    private static string Dots() => new('.', (int)(ImGui.GetTime() * 3 % 4));
 
     private void SetStatus(string text, bool isError)
     {
