@@ -38,6 +38,13 @@ public enum ConditionType
 
     /// <summary>You're doing one of these. Value: "Swimming,Diving" etc.</summary>
     State,
+
+    /// <summary>
+    /// A built-in event happens (value: its name, e.g. "wipe"). An event with this condition is a
+    /// variant: when the built-in event fires and the other conditions are true, the variant's line
+    /// plays instead of the built-in one.
+    /// </summary>
+    BuiltIn,
 }
 
 /// <summary>Who a "Has status" condition looks at.</summary>
@@ -97,7 +104,7 @@ public class CustomEvent
     public int CooldownSeconds { get; set; } = 30;
     public int Priority { get; set; } = 2;
 
-    /// <summary>Optional grouping shown on the Lines and Custom Events tabs ("Emotes", "RP"...).</summary>
+    /// <summary>Optional grouping shown on the Lines tab ("Emotes", "RP"...).</summary>
     public string Category { get; set; } = string.Empty;
 
     /// <summary>Switched-off events are kept but never trigger.</summary>
@@ -107,9 +114,12 @@ public class CustomEvent
 
     public bool IsUsable => Conditions.Count > 0 && Conditions.All(c => !string.IsNullOrWhiteSpace(c.Value));
 
+    /// <summary>The built-in event this one is a variant of, if it has a "Built-in event" condition.</summary>
+    public string? VariantOf => Conditions.FirstOrDefault(c => c.Type == ConditionType.BuiltIn)?.Value is { Length: > 0 } v ? v : null;
+
     public string Summary =>
         Conditions.Count == 0
-            ? "No conditions yet: set them up on the Custom Events tab."
+            ? "No conditions yet: click Edit trigger."
             : "When " + string.Join(" + ", Conditions.Select(Describe));
 
     public static string Describe(CustomCondition c) => c.Type switch
@@ -129,6 +139,7 @@ public class CustomEvent
         ConditionType.Weather => $"the weather is {(c.Value.Length > 0 ? c.Value.ToLowerInvariant() : "?")}",
         ConditionType.Idle => $"standing still {CustomCondition.IdleMinutes(c.Value)}+ min",
         ConditionType.JoinParty => "you join a party",
+        ConditionType.BuiltIn => $"{(KnownEvents.Get(c.Value)?.Label ?? "?").ToLowerInvariant()} happens",
         ConditionType.TimeOfDay => $"it's {OrList(c.Value)}",
         ConditionType.Place => $"in {OrList(c.Value)}",
         ConditionType.State => $"{OrList(c.Value)}",

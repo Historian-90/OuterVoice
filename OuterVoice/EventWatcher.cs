@@ -641,7 +641,7 @@ public sealed class EventWatcher : IDisposable
             if (arrival is not { } a || a.Key == before) continue;
             var actor = isMe ? meActor : actors.FirstOrDefault(x => x.EntityId == id && x.Obj != null);
             if (actor == null) continue;
-            var ev = a.Events.FirstOrDefault(e => HasLines(actor, e));
+            var ev = a.Events.FirstOrDefault(e => HasLines(actor, e) || FindVariant(actor, e) != null);
             if (ev != null) candidates.Add((actor, ev));
         }
         arrivals.Clear();
@@ -882,6 +882,61 @@ public sealed class EventWatcher : IDisposable
     private readonly Dictionary<ushort, string[]> emoteNames = new();
 
     /// <summary>Plays a custom event's line the moment all of its conditions are true together.</summary>
+    /// <summary>Whether one custom condition is true for this character right now.</summary>
+    private bool ConditionTrue(Actor actor, CustomCondition c, ref IReadOnlyList<string>? moodles)
+    {
+        var isMe = actor.EntityId == Plugin.ObjectTable.LocalPlayer?.EntityId;
+        var obj = actor.Obj;
+        switch (c.Type)
+        {
+            case ConditionType.BuiltIn: return true; // checked by whoever is saying the built-in line
+            case ConditionType.OpenCoffer:
+                return c.Value switch
+                {
+                    CustomCondition.CofferMap => Recent(actor, MomentCofferMap),
+                    CustomCondition.CofferRegular => Recent(actor, MomentCoffer),
+                    _ => Recent(actor, MomentCoffer) || Recent(actor, MomentCofferMap),
+                };
+            case ConditionType.Weather:
+                return currentWeatherLabel != null &&
+                       string.Equals(currentWeatherLabel, c.Value.Trim(), StringComparison.OrdinalIgnoreCase);
+            case ConditionType.Idle: return StillFor(actor) >= TimeSpan.FromMinutes(CustomCondition.IdleMinutes(c.Value));
+            case ConditionType.JoinParty: return Recent(actor, MomentJoin);
+            case ConditionType.TimeOfDay: return WorldState.Picks(c.Value).Contains(currentPeriod);
+            case ConditionType.Place: return WorldState.Picks(c.Value).Overlaps(WorldState.CurrentPlaceLabels(isMe));
+        }
+
+        if (obj == null) return false; // the rest need the character on screen
+        return c.Type switch
+        {
+            ConditionType.Cast => obj.IsCasting && NameMatches(ActionName(obj.CastActionId), c.Value),
+            ConditionType.Status => c.Scope == ConditionScope.Target
+                ? GaveStatus(actor, c.Value)
+                : obj.StatusList.Any(st => NameMatches(StatusName(st.StatusId), c.Value)),
+            ConditionType.Emote => EmoteNamesOf(obj).Any(n => NameMatches(n, c.Value)),
+            ConditionType.Moodle => (moodles ??= MoodlesIpc.TitlesOn(obj.Address)).Any(t => NameMatches(t, MoodlesIpc.Clean(c.Value))),
+            ConditionType.State => WorldState.Picks(c.Value).Overlaps(WorldState.CurrentStates(obj, isMe)),
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// A variant of a built-in event (a custom event with a "Built-in event" condition) whose other
+    /// conditions are true right now and that this character has lines for on this job.
+    /// </summary>
+    private CustomEvent? FindVariant(Actor actor, string builtInEvent)
+    {
+        IReadOnlyList<string>? moodles = null;
+        foreach (var ev in actor.Pack.CustomEvents)
+        {
+            if (!ev.Enabled || !ev.IsUsable || ev.VariantOf != builtInEvent) continue;
+            if (!HasLines(actor, ev.Id)) continue;
+            var a = actor;
+            if (ev.Conditions.All(c => ConditionTrue(a, c, ref moodles))) return ev;
+        }
+        return null;
+    }
+
     private void CheckCustomEvents(Actor actor)
     {
         if (actor.Obj == null || actor.Pack.CustomEvents.Count == 0)
@@ -892,34 +947,9 @@ public sealed class EventWatcher : IDisposable
 
         foreach (var ev in actor.Pack.CustomEvents)
         {
-            if (!ev.IsUsable || !ev.Enabled) continue;
+            if (!ev.IsUsable || !ev.Enabled || ev.VariantOf != null) continue; // variants play from Say()
 
-            var allTrue = ev.Conditions.All(c => c.Type switch
-            {
-                ConditionType.Cast => actor.Obj.IsCasting && NameMatches(ActionName(actor.Obj.CastActionId), c.Value),
-                ConditionType.Status => c.Scope == ConditionScope.Target
-                    ? GaveStatus(actor, c.Value)
-                    : actor.Obj.StatusList.Any(st => NameMatches(StatusName(st.StatusId), c.Value)),
-                ConditionType.Emote => EmoteNamesOf(actor.Obj).Any(n => NameMatches(n, c.Value)),
-                ConditionType.Moodle => (moodles ??= MoodlesIpc.TitlesOn(actor.Obj.Address))
-                                        .Any(t => NameMatches(t, MoodlesIpc.Clean(c.Value))),
-                ConditionType.OpenCoffer => c.Value switch
-                {
-                    CustomCondition.CofferMap => Recent(actor, MomentCofferMap),
-                    CustomCondition.CofferRegular => Recent(actor, MomentCoffer),
-                    _ => Recent(actor, MomentCoffer) || Recent(actor, MomentCofferMap),
-                },
-                ConditionType.Weather => currentWeatherLabel != null &&
-                                         string.Equals(currentWeatherLabel, c.Value.Trim(), StringComparison.OrdinalIgnoreCase),
-                ConditionType.Idle => StillFor(actor) >= TimeSpan.FromMinutes(CustomCondition.IdleMinutes(c.Value)),
-                ConditionType.JoinParty => Recent(actor, MomentJoin),
-                ConditionType.TimeOfDay => WorldState.Picks(c.Value).Contains(currentPeriod),
-                ConditionType.Place => WorldState.Picks(c.Value).Overlaps(
-                    WorldState.CurrentPlaceLabels(actor.EntityId == Plugin.ObjectTable.LocalPlayer?.EntityId)),
-                ConditionType.State => WorldState.Picks(c.Value).Overlaps(
-                    WorldState.CurrentStates(actor.Obj, actor.EntityId == Plugin.ObjectTable.LocalPlayer?.EntityId)),
-                _ => false,
-            });
+            var allTrue = ev.Conditions.All(c => ConditionTrue(actor, c, ref moodles));
 
             // During the grace period the current state is still recorded (so an already-active
             // Moodle never fires later), it just doesn't speak.
@@ -1076,9 +1106,18 @@ public sealed class EventWatcher : IDisposable
 
     // ---- Who speaks ---------------------------------------------------------------------
 
-    private void Say(Actor actor, string eventName, bool? initial = null) =>
+    private void Say(Actor actor, string eventName, bool? initial = null)
+    {
+        // A variant of this built-in event whose conditions hold plays instead of it.
+        if (!eventName.StartsWith("custom_", StringComparison.Ordinal) && FindVariant(actor, eventName) is { } variant)
+        {
+            speaker.Trigger(actor.Pack, variant.Id, actor.Job, Seed(actor.CharacterId, variant.Id),
+                            speakerEntityId: actor.EntityId);
+            return;
+        }
         speaker.Trigger(actor.Pack, eventName, actor.Job, Seed(actor.CharacterId, eventName), initial: initial,
                         speakerEntityId: actor.EntityId);
+    }
 
     /// <summary>
     /// Shared events get exactly one speaker. Every player's plugin sorts the same voiced party
@@ -1090,7 +1129,7 @@ public sealed class EventWatcher : IDisposable
         if (me == null) return;
 
         var candidates = Actors(me)
-            .Where(a => a.Pack.LinesFor(a.Job, eventName).Count > 0)
+            .Where(a => a.Pack.LinesFor(a.Job, eventName).Count > 0 || FindVariant(a, eventName) != null)
             .Where(a => !healersOnly || IsHealerJob(a.Job))
             .OrderBy(a => a.CharacterId, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -1098,8 +1137,7 @@ public sealed class EventWatcher : IDisposable
 
         var seed = Seed("shared", eventName);
         var chosen = candidates[(int)((ulong)seed % (ulong)candidates.Count)];
-        speaker.Trigger(chosen.Pack, eventName, chosen.Job, Seed(chosen.CharacterId, eventName),
-                        speakerEntityId: chosen.EntityId);
+        Say(chosen, eventName);
     }
 
     /// <summary>Same number on every player's machine for the same thing in the same 5-second window.</summary>

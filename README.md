@@ -195,9 +195,10 @@ already on when you zone in doesn't trigger a line.
 
 Skill names are looked up from the game in English, so this currently assumes an English client.
 
-## Custom events
+## Your own events
 
-On the **Custom Events** tab you can make your own triggers. A custom event plays a line the moment
+Click **+ New event** on the Lines tab to make your own trigger. It appears under **Your events**;
+**Edit trigger** opens its conditions right above its lines. Your event plays a line the moment
 **all** of its conditions are true at the same time. Conditions can be:
 
 - **Casting** an action (anything with a cast bar)
@@ -216,6 +217,15 @@ On the **Custom Events** tab you can make your own triggers. A custom event play
 - **Doing**: you're doing any of the things you tick (Swimming, Diving, Mounted, Flying, Crafting,
   Gathering, Fishing, Performing, Weapon drawn, In combat). For friends' packs, Diving, Flying and
   Fishing can't be seen.
+- **Built-in event**: makes it a *variant* (below)
+
+### Variants
+
+Open any built-in event and click **Make a variant**. You get your own event that starts from it
+(say, *Wipe*) where you add extra conditions (a Moodle, a place, the time of day...). When the
+built-in event fires and the extra conditions are true, the variant's lines play **instead of** the
+built-in ones. Who speaks, cooldowns and everything else work like the built-in event. Variants are
+grouped under **Your events > Variants**, and the built-in event lists its variants.
 
 When a custom event and a built-in event fire for the same moment (a custom "Panhaimatinon" event
 and Sage's Big heal line, say), the custom line wins.
@@ -225,19 +235,20 @@ coffer or party line, so e.g. "Opens coffer + Has Moodle *Greedy*" can replace t
 that Moodle is on. Weather and idle conditions fire when they become true (not when you zone into
 weather that's already there).
 
-Write the lines for a custom event on the Lines tab (the ALL group works for every job). Custom
-events are saved in your voice pack, so friends who import it hear them too.
-
-Give events a **Category** (Emotes, RP, Moodles...) to group them, switch them **On/Off** without
-deleting them, and use **Edit lines ->** / **Edit trigger** to jump between an event and its lines.
+Lines for your events are written right under them (the ALL group works for every job). Your
+events are saved in your voice pack, so friends who import it hear them too. Give them a
+**Category** (Emotes, RP, Moodles...) to group them, and switch them **On/Off** without deleting
+them.
 
 ## Staying organized
 
-The Lines tab is split into **General events** (Combat & duties, Social, Treasure, Places, State, Time, Weather, Idle), **Job abilities** (on a
-job's page) and **Custom events** (by category),
-and remembers which sections you've collapsed. Use the search box to find events or line text, and
-**Hide empty** to show only events that already have lines (add lines to the others with
-**+ Add lines to...**).
+The Lines tab shows only the events you've written lines for (and your own events). To start on
+another event, click **+ Add lines for...**: a searchable list of every event for the job, by
+category, with what triggers each one. Tick **Show all events** to see everything at once.
+
+Events are grouped into **General events** (Combat & duties, Social, Treasure, Places, State, Time,
+Weather, Idle), **Job abilities** (on a job's page) and **Your events** (by category). Collapsed
+sections are remembered, and the search box finds events and line text.
 
 ## Commands
 

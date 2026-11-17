@@ -15,7 +15,7 @@ public enum TextOutput
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
 
     public bool Enabled { get; set; } = true;
 
@@ -89,9 +89,9 @@ public class Configuration : IPluginConfiguration
     public int IdleMinutes { get; set; } = 5;
 
     /// <summary>Lines tab: only show events that already have lines.</summary>
-    public bool LinesHideEmpty { get; set; }
+    public bool LinesHideEmpty { get; set; } = true;
 
-    /// <summary>Sections the user collapsed on the Lines / Custom Events tabs.</summary>
+    /// <summary>Sections the user collapsed (or opened) on the Lines tab.</summary>
     public HashSet<string> CollapsedSections { get; set; } = new();
 
     public void Save() => Plugin.PluginInterface.SavePluginConfig(this);

@@ -5,12 +5,12 @@ using Dalamud.Bindings.ImGui;
 
 namespace OuterVoice.Windows;
 
-/// <summary>Custom Events tab: player-made triggers built from casts, statuses, emotes and Moodles.</summary>
+/// <summary>The trigger editor for player-made events (shown inline on the Lines tab).</summary>
 public sealed partial class ConfigWindow
 {
     private static readonly string[] ConditionLabels =
         ["Casting", "Has status", "Doing emote", "Has Moodle", "Opens coffer", "Weather is", "Idle for", "Joins a party",
-         "Time of day", "Place", "Doing"];
+         "Time of day", "Place", "Doing", "Built-in event"];
 
     private static readonly string[] ScopeLabels = ["Player (You)", "Target"];
 
@@ -23,6 +23,7 @@ public sealed partial class ConfigWindow
         "Buff/debuff name, e.g. Swiftcast",
         "Emote, e.g. wave or /wave",
         "Moodle title, e.g. Caffeinated",
+        "",
         "",
         "",
         "",
@@ -119,6 +120,31 @@ public sealed partial class ConfigWindow
                 MultiSelect(c, WorldState.StateLabels,
                             "For friends' packs, Diving, Flying and Fishing can't be seen on your screen.");
                 break;
+            case ConditionType.BuiltIn:
+            {
+                var current = KnownEvents.Get(c.Value);
+                if (ImGui.BeginCombo("##value", current == null ? "Pick an event..." : current.Label))
+                {
+                    foreach (var group in KnownEvents.All.GroupBy(e => e.Jobs != null ? "Job abilities" : e.Category ?? "Combat & duties"))
+                    {
+                        ImGui.TextColored(Muted, group.Key);
+                        foreach (var e in group)
+                        {
+                            if (ImGui.Selectable($"  {e.Label}##{e.Name}", e.Name == c.Value))
+                            {
+                                c.Value = e.Name;
+                                Changed();
+                            }
+                            if (ImGui.IsItemHovered()) ImGui.SetTooltip(e.Trigger);
+                        }
+                    }
+                    ImGui.EndCombo();
+                }
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Makes this a variant: when this built-in event fires and the other conditions are true,\n" +
+                                     "this event's line plays instead of the built-in one.");
+                break;
+            }
             case ConditionType.JoinParty:
                 if (c.Value.Length == 0)
                 {
@@ -141,101 +167,6 @@ public sealed partial class ConfigWindow
     }
     private readonly System.Collections.Generic.Dictionary<string, string> categoryDrafts = new();
 
-    private void DrawCustomEvents()
-    {
-        var pack = plugin.Speaker.Pack;
-        if (pack == null)
-        {
-            ImGui.TextColored(Muted, "Load or create a voice pack on the Voice Pack tab first.");
-            return;
-        }
-
-        ImGui.PushTextWrapPos();
-        ImGui.TextColored(Muted,
-            "Make your own triggers. A custom event plays a line the moment ALL of its conditions are true at the " +
-            "same time. Custom events are saved in your voice pack, so friends who import it hear them too.");
-        ImGui.PopTextWrapPos();
-        ImGui.Spacing();
-
-        if (ImGui.Button("+ New custom event"))
-        {
-            var created = new CustomEvent { Conditions = { new CustomCondition() } };
-            pack.CustomEvents.Add(created);
-            focusCustomEvent = created.Id;
-            customSearch = string.Empty;
-            Changed();
-        }
-
-        ImGui.SameLine();
-        ImGui.SetNextItemWidth(220);
-        ImGui.InputTextWithHint("##customsearch", "Search name, category, conditions...", ref customSearch, 64);
-
-        var q = customSearch.Trim();
-        var shown = pack.CustomEvents
-            .Where(e => e.Id == focusCustomEvent || q.Length == 0 ||
-                        e.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                        e.CategoryOrDefault.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                        e.Summary.Contains(q, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        if (pack.CustomEvents.Count > 0 && shown.Count == 0)
-            ImGui.TextColored(Muted, "Nothing matches your search.");
-
-        ImGui.BeginChild("##customlist", new Vector2(0, 0));
-        CustomEvent? toDelete = null;
-        foreach (var group in shown.GroupBy(e => e.CategoryOrDefault).OrderBy(g => g.Key == "Other").ThenBy(g => g.Key))
-        {
-            if (!SubSection($"custom:cat:{group.Key}", $"{group.Key}  ({group.Count()})"))
-                continue;
-
-            foreach (var ev in group.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
-            {
-                ImGui.PushID(ev.Id);
-                if (DrawCustomEventRow(pack, ev))
-                    toDelete = ev;
-                ImGui.PopID();
-            }
-
-            ImGui.TreePop();
-        }
-        ImGui.EndChild();
-
-        if (toDelete != null)
-        {
-            pack.CustomEvents.Remove(toDelete);
-            Changed();
-        }
-
-        focusCustomEvent = null;
-    }
-
-    /// <summary>One custom event as a compact collapsible row. Returns true if it should be deleted.</summary>
-    private bool DrawCustomEventRow(VoicePack pack, CustomEvent ev)
-    {
-        var lineCount = pack.Jobs.Values.SelectMany(l => l).Count(l => l.Event == ev.Id);
-        var name = string.IsNullOrWhiteSpace(ev.Name) ? "(unnamed)" : ev.Name;
-        var state = !ev.Enabled ? "  [off]" : !ev.IsUsable ? "  [incomplete]" : "";
-        var header = $"{name}{state}  ·  {ev.Summary}  ·  {lineCount} line{(lineCount == 1 ? "" : "s")}###row";
-
-        if (ev.Id == focusCustomEvent)
-        {
-            ImGui.SetNextItemOpen(true);
-            ImGui.SetScrollHereY();
-        }
-
-        if (!ev.Enabled) ImGui.PushStyleColor(ImGuiCol.Text, Muted);
-        var open = ImGui.CollapsingHeader(header);
-        if (!ev.Enabled) ImGui.PopStyleColor();
-        if (!open)
-            return false;
-
-        ImGui.Indent();
-        var delete = DrawCustomEvent(pack, ev);
-        ImGui.Unindent();
-        ImGui.Spacing();
-        return delete;
-    }
-
     /// <summary>Draws one custom event's editor. Returns true if the user asked to delete it.</summary>
     private bool DrawCustomEvent(VoicePack pack, CustomEvent ev)
     {
@@ -247,15 +178,6 @@ public sealed partial class ConfigWindow
         }
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Switch off to park this event without deleting it.");
 
-        ImGui.SameLine();
-        if (ImGui.SmallButton("Edit lines ->"))
-        {
-            // Custom lines usually live in ALL; fall back to whatever job is open.
-            if (pack.Jobs.ContainsKey(VoicePack.SharedJob)) editJob = VoicePack.SharedJob;
-            pendingTab = "Lines";
-            focusEvent = ev.Id;
-            lineSearch = string.Empty;
-        }
 
         var name = ev.Name;
         ImGui.SetNextItemWidth(220);
@@ -304,7 +226,11 @@ public sealed partial class ConfigWindow
                    "Has status: a regular game buff or debuff on you, from anyone.\n" +
                    "Doing emote: the emote you're currently performing.\n" +
                    "Has Moodle: a custom status from the Moodles plugin (needs Moodles installed;\n" +
-                   "  friends' Moodles only show up if they're synced to you).\n\n" +
+                   "  friends' Moodles only show up if they're synced to you).\n" +
+                   "Opens coffer / Joins a party: it just happened (within a few seconds).\n" +
+                   "Weather is / Time of day / Place / Doing: true for as long as it lasts.\n" +
+                   "Idle for: standing still that long, out of combat and duties.\n" +
+                   "Built-in event: makes this a variant of that event (plays instead of it).\n\n" +
                    "Names must match what the game (or Moodles) shows; capitals don't matter.");
 
         CustomCondition? removeCondition = null;
@@ -386,14 +312,10 @@ public sealed partial class ConfigWindow
             Changed();
         }
 
-        // Status line: what's missing, and how many lines it has.
-        var lines = pack.Jobs.Values.SelectMany(l => l).Count(l => l.Event == ev.Id);
         if (!ev.IsUsable)
             ImGui.TextColored(Warn, "Fill in every condition for this event to work.");
-        else if (lines == 0)
-            ImGui.TextColored(Warn, "No lines yet: add some on the Lines tab.");
-        else
-            ImGui.TextColored(Good, $"{lines} line{(lines == 1 ? "" : "s")} on the Lines tab.");
+        if (ev.VariantOf != null)
+            ImGui.TextColored(Muted, "Variant: plays instead of the built-in line when everything else here is true.");
 
         var ctrl = ImGui.GetIO().KeyCtrl;
         if (!ctrl) ImGui.BeginDisabled();

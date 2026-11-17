@@ -258,8 +258,10 @@ public sealed partial class ConfigWindow
             if (ev.Name == focusEvent) return true;
             if (q.Length > 0)
                 return ev.Label.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                       (ev.IsCustom && ev.Trigger.Contains(q, StringComparison.OrdinalIgnoreCase)) ||
                        evLines.Any(l => l.Text.Contains(q, StringComparison.OrdinalIgnoreCase));
-            return !plugin.Configuration.LinesHideEmpty || evLines.Count > 0;
+            // Your own events always show: they're what you're working on, even before they have lines.
+            return ev.IsCustom || !plugin.Configuration.LinesHideEmpty || evLines.Count > 0;
         }
 
         // General events: combat & duties, social, treasure, weather, idle
@@ -317,7 +319,7 @@ public sealed partial class ConfigWindow
 
         // Custom events, grouped by category
         var custom = events.Where(e => e.IsCustom && Visible(e)).ToList();
-        if (custom.Count > 0 && Section("lines:custom", "CUSTOM EVENTS", true))
+        if (custom.Count > 0 && Section("lines:custom", "YOUR EVENTS", true))
         {
             foreach (var group in custom.GroupBy(e => e.Category ?? "Other").OrderBy(g => g.Key == "Other").ThenBy(g => g.Key))
             {
@@ -330,10 +332,20 @@ public sealed partial class ConfigWindow
         DrawUnusedLines(pack, jobLines);
 
         if (common.Count + jobEvents.Count + custom.Count == 0)
-            ImGui.TextColored(Muted, q.Length > 0 ? "Nothing matches your search." : "No events with lines yet. Use \"+ Add lines to...\" above.");
+            ImGui.TextColored(Muted, q.Length > 0
+                ? "Nothing matches your search."
+                : "No lines yet. Click \"+ Add lines for...\" to pick an event, or \"+ New event\" to make your own.");
 
         ImGui.EndChild();
         focusEvent = null;
+
+        if (deleteCustom != null)
+        {
+            pack.CustomEvents.Remove(deleteCustom);
+            editingCustom.Remove(deleteCustom.Id);
+            deleteCustom = null;
+            Changed();
+        }
     }
 
     private string lineSearch = string.Empty;
@@ -394,49 +406,132 @@ public sealed partial class ConfigWindow
         }
     }
     private string? focusEvent;        // event to scroll to / expand on the Lines tab
-    private string? focusCustomEvent;  // custom event to expand on the Custom Events tab
+    private string? focusCustomEvent;  // (unused since 0.6.0)
     private string? pendingTab;
 
     private ImGuiTabItemFlags TabFlags(string tab) =>
         pendingTab == tab ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
 
-    /// <summary>Search, hide-empty toggle, and a picker to start lines for a hidden event.</summary>
+    /// <summary>Search, "show all" toggle, the event picker, and New event.</summary>
     private void DrawLinesToolbar(VoicePack pack, List<Line> jobLines)
     {
         ImGui.SetNextItemWidth(200);
         ImGui.InputTextWithHint("##linesearch", "Search events and lines...", ref lineSearch, 64);
 
         ImGui.SameLine();
-        var hide = plugin.Configuration.LinesHideEmpty;
-        if (ImGui.Checkbox("Hide empty", ref hide))
+        if (ImGui.Button("+ Add lines for..."))
         {
-            plugin.Configuration.LinesHideEmpty = hide;
-            plugin.Configuration.Save();
+            pickerSearch = string.Empty;
+            ImGui.OpenPopup("##eventpicker");
         }
-
-        if (!plugin.Configuration.LinesHideEmpty)
-            return;
-
-        var empty = pack.AllEvents()
-                        .Where(e => e.AppliesTo(editJob) && jobLines.All(l => l.Event != e.Name))
-                        .ToList();
-        if (empty.Count == 0)
-            return;
+        DrawEventPicker(pack, jobLines);
 
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(170);
-        if (ImGui.BeginCombo("##addto", "+ Add lines to..."))
+        if (ImGui.Button("+ New event"))
+            CreateCustomEvent(pack, null);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Make your own event: pick conditions (an emote, a buff, a Moodle, a place...) and write lines for it.");
+
+        ImGui.SameLine();
+        var showAll = !plugin.Configuration.LinesHideEmpty;
+        if (ImGui.Checkbox("Show all events", ref showAll))
         {
-            foreach (var ev in empty)
-            {
-                if (ImGui.Selectable(ev.Label))
-                {
-                    AddLine(pack, jobLines, ev.Name);
-                    focusEvent = ev.Name;
-                }
-            }
-            ImGui.EndCombo();
+            plugin.Configuration.LinesHideEmpty = !showAll;
+            plugin.Configuration.Save();
         }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Off: only events you've written lines for (and your own events).\nOn: every event, empty or not.");
+    }
+
+    private string pickerSearch = string.Empty;
+
+    /// <summary>A searchable list of every event for this job, by category, with what triggers it.</summary>
+    private void DrawEventPicker(VoicePack pack, List<Line> jobLines)
+    {
+        if (!ImGui.BeginPopup("##eventpicker")) return;
+
+        if (ImGui.IsWindowAppearing()) ImGui.SetKeyboardFocusHere();
+        ImGui.SetNextItemWidth(300);
+        ImGui.InputTextWithHint("##picksearch", "Search events...", ref pickerSearch, 64);
+
+        var q = pickerSearch.Trim();
+        string Heading(KnownEvents.Info e) =>
+            e.IsCustom ? $"Your events: {e.Category}"
+            : e.Jobs != null ? "Job abilities"
+            : e.Group != null ? $"{e.Category} > {e.Group}"
+            : e.Category ?? KnownEvents.CommonCategories[0];
+
+        var events = pack.AllEvents()
+                         .Where(e => e.AppliesTo(editJob))
+                         .Where(e => q.Length == 0 ||
+                                     e.Label.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                                     e.Trigger.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                                     Heading(e).Contains(q, StringComparison.OrdinalIgnoreCase))
+                         .ToList();
+
+        ImGui.BeginChild("##picklist", new Vector2(460, 360));
+        if (events.Count == 0)
+            ImGui.TextColored(Muted, "Nothing matches.");
+        foreach (var group in events.GroupBy(Heading))
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(Good, group.Key);
+            ImGui.Separator();
+            foreach (var ev in group)
+            {
+                var count = jobLines.Count(l => l.Event == ev.Name);
+                var label = count > 0 ? $"{ev.Label}  ({count})" : ev.Label;
+                if (ImGui.Selectable($"{label}##pick_{ev.Name}"))
+                {
+                    if (count == 0) AddLine(pack, jobLines, ev.Name);
+                    focusEvent = ev.Name;
+                    lineSearch = string.Empty;
+                    ImGui.CloseCurrentPopup();
+                }
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip(ev.Trigger);
+            }
+        }
+        ImGui.EndChild();
+
+        if (ImGui.Button("+ New event"))
+        {
+            CreateCustomEvent(pack, null);
+            ImGui.CloseCurrentPopup();
+        }
+        ImGui.SameLine();
+        ImGui.TextColored(Muted, "Picking an event adds a first line for it (or jumps to it).");
+        ImGui.EndPopup();
+    }
+
+    /// <summary>Custom events whose trigger editor is open on the Lines tab.</summary>
+    private readonly HashSet<string> editingCustom = new();
+    private CustomEvent? deleteCustom;
+
+    /// <summary>
+    /// Makes a new custom event, or a variant of a built-in one, and opens it (trigger editor and all)
+    /// on the Lines tab.
+    /// </summary>
+    private void CreateCustomEvent(VoicePack pack, KnownEvents.Info? variantOf)
+    {
+        var created = variantOf == null
+            ? new CustomEvent { Conditions = { new CustomCondition() } }
+            : new CustomEvent
+            {
+                Name = $"{variantOf.Label} (variant)",
+                Category = "Variants",
+                Priority = Math.Max(2, variantOf.Priority),
+                CooldownSeconds = variantOf.CooldownSeconds,
+                Conditions =
+                {
+                    new CustomCondition { Type = ConditionType.BuiltIn, Value = variantOf.Name },
+                    new CustomCondition(),
+                },
+            };
+        pack.CustomEvents.Add(created);
+        editingCustom.Add(created.Id);
+        focusEvent = created.Id;
+        lineSearch = string.Empty;
+        Changed();
     }
 
     private void AddLine(VoicePack pack, List<Line> jobLines, string eventName)
@@ -471,18 +566,25 @@ public sealed partial class ConfigWindow
         }
 
         ImGui.Indent();
-        ImGui.TextColored(Muted, ev.Trigger);
-        var triggerInfo = JobTriggers.Describe(ev.Name, editJob);
-        if (triggerInfo.Length > 0)
-            InfoMarker(triggerInfo);
-        if (ev.IsCustom)
+        if (ev.IsCustom && pack.CustomEvents.FirstOrDefault(c => c.Id == ev.Name) is { } custom)
         {
+            DrawCustomTrigger(pack, custom);
+        }
+        else
+        {
+            ImGui.TextColored(Muted, ev.Trigger);
+            var triggerInfo = JobTriggers.Describe(ev.Name, editJob);
+            if (triggerInfo.Length > 0)
+                InfoMarker(triggerInfo);
             ImGui.SameLine();
-            if (ImGui.SmallButton($"Edit trigger##trg_{ev.Name}"))
-            {
-                pendingTab = "Custom Events";
-                focusCustomEvent = ev.Name;
-            }
+            if (ImGui.SmallButton($"Make a variant##var_{ev.Name}"))
+                CreateCustomEvent(pack, ev);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("A copy of this event with extra conditions (a Moodle, a place, the time...).\n" +
+                                 "When they're true, the variant's lines play instead of these.");
+            var variants = pack.CustomEvents.Where(c => c.VariantOf == ev.Name).Select(c => c.Name).ToList();
+            if (variants.Count > 0)
+                ImGui.TextColored(Muted, $"Variants: {string.Join(", ", variants)}");
         }
 
         Line? toDelete = null;
@@ -548,6 +650,28 @@ public sealed partial class ConfigWindow
             plugin.Configuration.Save();
         }
         return nowOpen;
+    }
+
+    /// <summary>A custom event's trigger at the top of its lines: a summary, or the full editor.</summary>
+    private void DrawCustomTrigger(VoicePack pack, CustomEvent custom)
+    {
+        var editing = editingCustom.Contains(custom.Id);
+        ImGui.TextColored(custom.IsUsable ? Muted : Warn, $"When: {custom.Summary}");
+        ImGui.SameLine();
+        if (ImGui.SmallButton(editing ? $"Done##trg_{custom.Id}" : $"Edit trigger##trg_{custom.Id}"))
+        {
+            if (editing) editingCustom.Remove(custom.Id);
+            else editingCustom.Add(custom.Id);
+        }
+        if (!editing) return;
+
+        ImGui.PushID(custom.Id);
+        ImGui.Indent();
+        if (DrawCustomEvent(pack, custom))
+            deleteCustom = custom;
+        ImGui.Unindent();
+        ImGui.PopID();
+        ImGui.Separator();
     }
 
     /// <summary>"City: Kugane" reads as "Kugane" inside the Cities group; plain "City" is the fallback.</summary>

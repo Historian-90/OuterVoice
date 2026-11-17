@@ -55,6 +55,13 @@ public sealed class Plugin : IDalamudPlugin
     {
         Instance = this;
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        if (Configuration.Version < 2)
+        {
+            // 0.6.0: the Lines tab shows only events with lines by default (with a picker for the rest).
+            Configuration.LinesHideEmpty = true;
+            Configuration.Version = 2;
+            Configuration.Save();
+        }
 
         Player = new VoicePlayer();
         Lips = new LipSync();

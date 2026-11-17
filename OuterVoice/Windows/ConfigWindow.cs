@@ -51,12 +51,6 @@ public sealed partial class ConfigWindow : Window
             ImGui.EndTabItem();
         }
 
-        if (ImGui.BeginTabItem("Custom Events", TabFlags("Custom Events")))
-        {
-            DrawCustomEvents();
-            ImGui.EndTabItem();
-        }
-
         if (ImGui.BeginTabItem("Friends"))
         {
             DrawFriends();
