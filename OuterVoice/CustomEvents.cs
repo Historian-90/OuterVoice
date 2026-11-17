@@ -17,12 +17,44 @@ public enum ConditionType
 
     /// <summary>You have a Moodle (from the Moodles plugin) with this title.</summary>
     Moodle,
+
+    /// <summary>You just opened a treasure coffer. Value: "any", "regular" or "map".</summary>
+    OpenCoffer,
+
+    /// <summary>The current weather is of this kind. Value: a weather label ("Rain", "Snow"...).</summary>
+    Weather,
+
+    /// <summary>You've been standing still (out of combat and duties) for at least this many minutes.</summary>
+    Idle,
+
+    /// <summary>You just joined a party.</summary>
+    JoinParty,
 }
 
 public class CustomCondition
 {
     public ConditionType Type { get; set; } = ConditionType.Emote;
     public string Value { get; set; } = string.Empty;
+
+    /// <summary>The value a newly picked condition type starts with (empty means "type something").</summary>
+    public static string DefaultValue(ConditionType type) => type switch
+    {
+        ConditionType.OpenCoffer => CofferAny,
+        ConditionType.Weather => "Rain",
+        ConditionType.Idle => "5",
+        ConditionType.JoinParty => "yes",
+        _ => string.Empty,
+    };
+
+    public const string CofferAny = "any";
+    public const string CofferRegular = "regular";
+    public const string CofferMap = "map";
+
+    /// <summary>Weather labels a condition can pick, matching the weather events.</summary>
+    public static string[] WeatherLabels =>
+        KnownEvents.All.Where(e => e.Category == "Weather").Select(e => e.Label).ToArray();
+
+    public static int IdleMinutes(string value) => int.TryParse(value, out var m) ? Math.Clamp(m, 1, 60) : 5;
 }
 
 /// <summary>
@@ -58,6 +90,15 @@ public class CustomEvent
         ConditionType.Status => $"you have {Quote(c.Value)}",
         ConditionType.Emote => $"doing /{(c.Value.Length > 0 ? c.Value.TrimStart('/') : "?")}",
         ConditionType.Moodle => $"Moodle {Quote(c.Value)}",
+        ConditionType.OpenCoffer => c.Value switch
+        {
+            CustomCondition.CofferMap => "you open a treasure map coffer",
+            CustomCondition.CofferRegular => "you open a coffer (not a map coffer)",
+            _ => "you open a coffer",
+        },
+        ConditionType.Weather => $"the weather is {(c.Value.Length > 0 ? c.Value.ToLowerInvariant() : "?")}",
+        ConditionType.Idle => $"standing still {CustomCondition.IdleMinutes(c.Value)}+ min",
+        ConditionType.JoinParty => "you join a party",
         _ => c.Value,
     };
 

@@ -8,7 +8,11 @@ namespace OuterVoice.Windows;
 /// <summary>Custom Events tab: player-made triggers built from casts, statuses, emotes and Moodles.</summary>
 public sealed partial class ConfigWindow
 {
-    private static readonly string[] ConditionLabels = ["Casting", "Has status", "Doing emote", "Has Moodle"];
+    private static readonly string[] ConditionLabels =
+        ["Casting", "Has status", "Doing emote", "Has Moodle", "Opens coffer", "Weather is", "Idle for", "Joins a party"];
+
+    private static readonly string[] CofferValues = [CustomCondition.CofferAny, CustomCondition.CofferRegular, CustomCondition.CofferMap];
+    private static readonly string[] CofferLabels = ["Any coffer", "Regular coffer", "Treasure map coffer"];
 
     private static readonly string[] ConditionHints =
     [
@@ -16,9 +20,71 @@ public sealed partial class ConfigWindow
         "Buff/debuff name, e.g. Swiftcast",
         "Emote, e.g. wave or /wave",
         "Moodle title, e.g. Caffeinated",
+        "",
+        "",
+        "",
+        "",
     ];
 
     private string customSearch = string.Empty;
+
+    /// <summary>The value editor for a condition: free text, or a picker for the newer kinds.</summary>
+    private void DrawConditionValue(CustomCondition c)
+    {
+        ImGui.SetNextItemWidth(220);
+        switch (c.Type)
+        {
+            case ConditionType.OpenCoffer:
+            {
+                var i = Math.Max(0, Array.IndexOf(CofferValues, c.Value));
+                if (ImGui.Combo("##value", ref i, CofferLabels, CofferLabels.Length))
+                {
+                    c.Value = CofferValues[i];
+                    Changed();
+                }
+                break;
+            }
+            case ConditionType.Weather:
+            {
+                var labels = CustomCondition.WeatherLabels;
+                var i = Math.Max(0, Array.FindIndex(labels, l => string.Equals(l, c.Value, StringComparison.OrdinalIgnoreCase)));
+                if (ImGui.Combo("##value", ref i, labels, labels.Length) || c.Value.Length == 0)
+                {
+                    c.Value = labels[i];
+                    Changed();
+                }
+                break;
+            }
+            case ConditionType.Idle:
+            {
+                var m = CustomCondition.IdleMinutes(c.Value);
+                if (ImGui.SliderInt("##value", ref m, 1, 60, "%d+ min standing still"))
+                {
+                    c.Value = m.ToString();
+                    Changed();
+                }
+                break;
+            }
+            case ConditionType.JoinParty:
+                if (c.Value.Length == 0)
+                {
+                    c.Value = "yes";
+                    Changed();
+                }
+                ImGui.TextColored(Muted, "(you, or the friend whose pack it is)");
+                break;
+            default:
+            {
+                var value = c.Value;
+                if (ImGui.InputTextWithHint("##value", ConditionHints[(int)c.Type], ref value, 128))
+                {
+                    c.Value = value;
+                    Changed();
+                }
+                break;
+            }
+        }
+    }
     private readonly System.Collections.Generic.Dictionary<string, string> categoryDrafts = new();
 
     private void DrawCustomEvents()
@@ -206,20 +272,15 @@ public sealed partial class ConfigWindow
 
             var type = (int)c.Type;
             ImGui.SetNextItemWidth(120);
-            if (ImGui.Combo("##type", ref type, ConditionLabels, ConditionLabels.Length))
+            if (ImGui.Combo("##type", ref type, ConditionLabels, ConditionLabels.Length) && (ConditionType)type != c.Type)
             {
                 c.Type = (ConditionType)type;
+                c.Value = CustomCondition.DefaultValue(c.Type);
                 Changed();
             }
 
             ImGui.SameLine();
-            var value = c.Value;
-            ImGui.SetNextItemWidth(220);
-            if (ImGui.InputTextWithHint("##value", ConditionHints[(int)c.Type], ref value, 128))
-            {
-                c.Value = value;
-                Changed();
-            }
+            DrawConditionValue(c);
 
             ImGui.SameLine();
             if (ImGui.SmallButton("Remove"))

@@ -187,6 +187,8 @@ public sealed class EventWatcher : IDisposable
         if (busy || !StandingStill()) lastBusy = now;
 
         var me = Plugin.ObjectTable.LocalPlayer;
+        pendingLines.Clear();
+        currentWeatherLabel = CurrentWeatherLabel();
         CheckParty(now, me);
         var actors = me == null ? new List<Actor>() : Actors(me);
         if (me == null || actors.Count == 0)
@@ -278,8 +280,11 @@ public sealed class EventWatcher : IDisposable
         foreach (var key in partnerHolder.Keys.Where(k => !partnersSeen.Contains(k)).ToList())
             partnerHolder.Remove(key);
 
+        CheckChests(actors, now);
+
         foreach (var actor in actors)
         {
+            TrackStillness(actor, now, busy);
             CheckCustomEvents(actor);
             CheckLimitBreak(actor);
             CheckSelfTriggers(actor);
@@ -288,7 +293,7 @@ public sealed class EventWatcher : IDisposable
         }
 
         CheckBigPull(me);
-        CheckChests(actors, now);
+        FlushPendingLines();
         CheckWeather(now, busy);
         CheckIdle(now, busy);
     }
@@ -351,7 +356,7 @@ public sealed class EventWatcher : IDisposable
         {
             var myJob = JobAbbrev(me.ClassJob.RowId);
             if (speaker.Pack is { } mine && myJob != null && speaker.SpeaksOn(mine, myJob))
-                Say(new Actor(me.EntityId, Plugin.CurrentCharacterId() ?? "me", myJob, mine, me), "party_join");
+                Moment(new Actor(me.EntityId, Plugin.CurrentCharacterId() ?? "me", myJob, mine, me), "party_join", MomentJoin);
             return; // everyone else was already there
         }
 
@@ -362,7 +367,7 @@ public sealed class EventWatcher : IDisposable
             if (before.Others.ContainsKey(id) || m.Job == null) continue;
             if (speaker.FriendPack(id) is not { } pack || !speaker.SpeaksOn(pack, m.Job)) continue;
             var obj = Plugin.ObjectTable.FirstOrDefault(o => o.EntityId == m.EntityId && m.EntityId != 0) as IBattleChara;
-            Say(new Actor(m.EntityId, id, m.Job, pack, obj), "party_join");
+            Moment(new Actor(m.EntityId, id, m.Job, pack, obj), "party_join", MomentJoin);
         }
     }
 
@@ -413,6 +418,70 @@ public sealed class EventWatcher : IDisposable
         return new PartySnapshot(others, leader);
     }
 
+    // ---- Moments (things that just happened) for custom events -------------------------------
+
+    private const string MomentCoffer = "coffer";
+    private const string MomentCofferMap = "coffer_map";
+    private const string MomentJoin = "join";
+    private static readonly TimeSpan MomentWindow = TimeSpan.FromSeconds(3);
+
+    /// <summary>When each character last opened a coffer / joined a party.</summary>
+    private readonly Dictionary<(uint Entity, string Kind), DateTime> moments = new();
+
+    /// <summary>
+    /// Built-in lines for moments, held until the end of the tick so a custom event using the same
+    /// moment (say, "opens a coffer" + a Moodle) can speak instead of the generic line.
+    /// </summary>
+    private readonly List<(Actor Actor, string Event, string Kind)> pendingLines = new();
+
+    private void Moment(Actor actor, string eventName, string kind)
+    {
+        moments[(actor.EntityId, kind)] = DateTime.UtcNow;
+        pendingLines.Add((actor, eventName, kind));
+    }
+
+    private bool Recent(Actor actor, string kind) =>
+        moments.TryGetValue((actor.EntityId, kind), out var at) && DateTime.UtcNow - at <= MomentWindow;
+
+    private void FlushPendingLines()
+    {
+        foreach (var (actor, ev, _) in pendingLines)
+            Say(actor, ev);
+        pendingLines.Clear();
+    }
+
+    private string? currentWeatherLabel;
+
+    private static unsafe string? CurrentWeatherLabel()
+    {
+        var wm = FFXIVClientStructs.FFXIV.Client.Game.WeatherManager.Instance();
+        if (wm == null) return null;
+        var w = wm->GetCurrentWeather();
+        if (w == 0) return null;
+        var ev = WeatherEventFor(w);
+        return ev == null ? null : KnownEvents.Get(ev)?.Label;
+    }
+
+    /// <summary>Since when each friend has been standing still out of combat (you use lastBusy).</summary>
+    private readonly Dictionary<uint, (System.Numerics.Vector3 Pos, DateTime Since)> stillSince = new();
+
+    private void TrackStillness(Actor actor, DateTime now, bool busy)
+    {
+        if (actor.Obj == null || actor.EntityId == Plugin.ObjectTable.LocalPlayer?.EntityId) return;
+        var pos = actor.Obj.Position;
+        var active = busy || actor.Obj.StatusFlags.HasFlag(StatusFlags.InCombat) ||
+                     !stillSince.TryGetValue(actor.EntityId, out var prev) ||
+                     System.Numerics.Vector3.Distance(prev.Pos, pos) > MoveThreshold;
+        stillSince[actor.EntityId] = (pos, active ? now : stillSince[actor.EntityId].Since);
+    }
+
+    private TimeSpan StillFor(Actor actor)
+    {
+        var now = DateTime.UtcNow;
+        if (actor.EntityId == Plugin.ObjectTable.LocalPlayer?.EntityId) return now - lastBusy;
+        return stillSince.TryGetValue(actor.EntityId, out var s) ? now - s.Since : TimeSpan.Zero;
+    }
+
     // ---- Treasure coffers ------------------------------------------------------------------
 
     private const float ChestReach = 8f; // yalms; you have to be next to a coffer to open it
@@ -456,8 +525,10 @@ public sealed class EventWatcher : IDisposable
                     lastTarget.TryGetValue(a.EntityId, out var lt) && (lt.Target == id || (obj.EntityId != 0 && (uint)lt.Target == obj.EntityId)) && now - lt.At <= ChestTargetMemory &&
                     System.Numerics.Vector3.Distance(a.Obj.Position, obj.Position) <= ChestReach);
                 if (opener != null)
-                    Say(opener, t->CofferKind == FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureKind.TreasureHunt
-                                    ? "chest_map" : "chest_open");
+                {
+                    var map = t->CofferKind == FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureKind.TreasureHunt;
+                    Moment(opener, map ? "chest_map" : "chest_open", map ? MomentCofferMap : MomentCoffer);
+                }
             }
             chestOpened[id] = open;
         }
@@ -658,6 +729,16 @@ public sealed class EventWatcher : IDisposable
                 ConditionType.Emote => EmoteNamesOf(actor.Obj).Any(n => NameMatches(n, c.Value)),
                 ConditionType.Moodle => (moodles ??= MoodlesIpc.TitlesOn(actor.Obj.Address))
                                         .Any(t => NameMatches(t, MoodlesIpc.Clean(c.Value))),
+                ConditionType.OpenCoffer => c.Value switch
+                {
+                    CustomCondition.CofferMap => Recent(actor, MomentCofferMap),
+                    CustomCondition.CofferRegular => Recent(actor, MomentCoffer),
+                    _ => Recent(actor, MomentCoffer) || Recent(actor, MomentCofferMap),
+                },
+                ConditionType.Weather => currentWeatherLabel != null &&
+                                         string.Equals(currentWeatherLabel, c.Value.Trim(), StringComparison.OrdinalIgnoreCase),
+                ConditionType.Idle => StillFor(actor) >= TimeSpan.FromMinutes(CustomCondition.IdleMinutes(c.Value)),
+                ConditionType.JoinParty => Recent(actor, MomentJoin),
                 _ => false,
             });
 
@@ -668,7 +749,14 @@ public sealed class EventWatcher : IDisposable
 
             var key = (actor.EntityId, ev.Id);
             if (allTrue && customActive.Add(key) && maySpeak)
+            {
                 Say(actor, ev.Id);
+                // A custom event built on a coffer or party join replaces the built-in line for it.
+                foreach (var c in ev.Conditions)
+                    if (c.Type is ConditionType.OpenCoffer or ConditionType.JoinParty)
+                        pendingLines.RemoveAll(p => p.Actor.EntityId == actor.EntityId &&
+                                                    (c.Type == ConditionType.JoinParty) == (p.Kind == MomentJoin));
+            }
             else if (!allTrue)
                 customActive.Remove(key);
         }
@@ -895,6 +983,8 @@ public sealed class EventWatcher : IDisposable
         tankLimitBreakSeen.Clear();
         customActive.Clear();
         chestOpened.Clear();
+        moments.Clear();
+        stillSince.Clear();
         lastTarget.Clear();
         baselined.Clear();
         firstSeen.Clear();

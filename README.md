@@ -171,6 +171,15 @@ On the **Custom Events** tab you can make your own triggers. A custom event play
 - **Doing emote**: e.g. `wave` or `/wave`
 - **Has Moodle**: a custom status from the Moodles plugin (needs Moodles; friends' Moodles count
   when they're synced to you)
+- **Opens coffer**: you just opened a coffer (any, regular, or treasure map)
+- **Weather is**: the current weather is of a kind (Rain, Snow, Fog...)
+- **Idle for**: you've been standing still (out of combat and duties) for at least N minutes
+- **Joins a party**: you just joined someone's party
+
+A custom event built on **Opens coffer** or **Joins a party** plays *instead of* the built-in
+coffer or party line, so e.g. "Opens coffer + Has Moodle *Greedy*" can replace the usual line when
+that Moodle is on. Weather and idle conditions fire when they become true (not when you zone into
+weather that's already there).
 
 Write the lines for a custom event on the Lines tab (the ALL group works for every job). Custom
 events are saved in your voice pack, so friends who import it hear them too.
