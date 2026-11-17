@@ -262,9 +262,9 @@ public sealed partial class ConfigWindow
             return !plugin.Configuration.LinesHideEmpty || evLines.Count > 0;
         }
 
-        // Every job: combat & duties, weather, idle
+        // General events: combat & duties, social, treasure, weather, idle
         var common = events.Where(e => !e.IsCustom && e.Jobs == null && Visible(e)).ToList();
-        if (common.Count > 0 && Section("lines:common", "EVERY JOB", true))
+        if (common.Count > 0 && Section("lines:common", "GENERAL EVENTS", true))
         {
             foreach (var group in common.GroupBy(e => e.Category ?? KnownEvents.CommonCategories[0])
                                         .OrderBy(g => Array.IndexOf(KnownEvents.CommonCategories, g.Key)))

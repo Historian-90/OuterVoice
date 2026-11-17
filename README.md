@@ -77,7 +77,7 @@ name to people who open it in a browser. You can turn the link off at any time.
 
 ## Events
 
-**Every job**
+**General events**
 
 | Event | When it fires |
 |---|---|
@@ -91,7 +91,7 @@ name to people who open it in a browser. You can turn the link off at any time.
 | Duty complete / Clean clear | Duty cleared (clean = no deaths) |
 | Limit Break 1 / 2 / 3 | You start casting a Limit Break (works without a gauge too, e.g. Explorer Mode) |
 
-**Social** (every job)
+**Social** (general events)
 
 | Event | When it fires |
 |---|---|
@@ -101,7 +101,7 @@ Only the person who joins speaks: you when you join someone's party, and a frien
 their voice) when they join yours. Forming a party by inviting someone doesn't play your line, and
 Duty Finder groups don't count.
 
-**Treasure** (every job)
+**Treasure** (general events)
 
 | Event | When it fires |
 |---|---|
@@ -111,7 +111,7 @@ Duty Finder groups don't count.
 Only the person who opens the coffer speaks (you, or a friend with a pack when they open one).
 Coffers other people open stay silent, and so do coffers that are already open when you arrive.
 
-**Weather** (every job)
+**Weather** (general events)
 
 The weather changes while you're out in the world, or you arrive somewhere with inclement weather
 (anything but clear skies and clouds). Arriving doesn't repeat: teleporting from rain to more rain
@@ -132,7 +132,7 @@ party comments.
 | Dust | Dust Storms, Sandstorms |
 | Gloom | Gloom, umbral weather and anything stranger (Auroras, Moon Dust...) |
 
-**Idle** (every job)
+**Idle** (general events)
 
 Random chatter while you're standing around. It only starts after you've stood still for a while:
 moving, fighting, a duty, crafting or gathering starts the wait over (turning on the spot and emotes
@@ -180,7 +180,7 @@ deleting them, and use **Edit lines ->** / **Edit trigger** to jump between an e
 
 ## Staying organized
 
-The Lines tab is split into **Every job** (Combat & duties, Social, Treasure, Weather, Idle), **Job abilities** (on a
+The Lines tab is split into **General events** (Combat & duties, Social, Treasure, Weather, Idle), **Job abilities** (on a
 job's page) and **Custom events** (by category),
 and remembers which sections you've collapsed. Use the search box to find events or line text, and
 **Hide empty** to show only events that already have lines (add lines to the others with

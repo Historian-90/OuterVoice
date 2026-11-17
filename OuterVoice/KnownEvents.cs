@@ -25,7 +25,7 @@ public static class KnownEvents
 
     public static readonly IReadOnlyList<Info> All =
     [
-        // Every job: combat and duties
+        // General events: combat and duties
         new("duty_start", "Duty start", 2, 0, "A duty commences.", "Combat & duties"),
         new("clutch_save", "Clutch save", 4, 45, "Someone drops under 15% HP and is back above 50% within 3 seconds.", "Combat & duties"),
         new("tank_death", "Tank death", 4, 30, "A tank in your party dies.", "Combat & duties"),
@@ -39,14 +39,14 @@ public static class KnownEvents
         new("limit_break_2", "Limit Break 2", 3, 0, "You start casting a level 2 Limit Break.", "Combat & duties"),
         new("limit_break_3", "Limit Break 3", 5, 0, "You start casting a level 3 Limit Break.", "Combat & duties"),
 
-        // Every job: social
+        // General events: social
         new("party_join", "Joining a party", 2, 60, "You join someone's party. Friends with packs say their own line when they join yours.", "Social"),
 
-        // Every job: treasure
+        // General events: treasure
         new("chest_open", "Treasure coffer", 2, 20, "You open a treasure coffer (dungeons, raids, and anywhere else). Coffers other people open don't count.", "Treasure"),
         new("chest_map", "Treasure map coffer", 3, 20, "You open a treasure map coffer.", "Treasure"),
 
-        // Every job: weather. Fires when the weather changes while you're out in the world, or when
+        // General events: weather. Fires when the weather changes while you're out in the world, or when
         // you arrive somewhere with inclement weather you weren't already in (not in duties or combat).
         new("weather_clear", "Clear skies", 1, 900, "The weather turns to Clear Skies or Fair Skies.", "Weather"),
         new("weather_clouds", "Clouds", 1, 900, "The weather turns cloudy (Clouds).", "Weather"),
@@ -59,7 +59,7 @@ public static class KnownEvents
         new("weather_dust", "Dust", 1, 900, "Dust kicks up (Dust Storms, Sandstorms).", "Weather"),
         new("weather_gloom", "Gloom", 1, 900, "Gloom, umbral weather or anything stranger (Auroras, Moon Dust...).", "Weather"),
 
-        // Every job: idle
+        // General events: idle
         new("idle", "Idle", 1, 300, "Every now and then, after you've stood still for a while (no moving, combat, duties, crafting or gathering). Set how often under Settings.", "Idle"),
 
         // Job-specific (which jobs have them is defined in JobTriggers)
@@ -74,7 +74,7 @@ public static class KnownEvents
         new("enshroud", "Enshroud", 1, 90, "You enter Enshroud."),
     ];
 
-    /// <summary>Subsections of EVERY JOB, in display order.</summary>
+    /// <summary>Subsections of GENERAL EVENTS, in display order.</summary>
     public static readonly string[] CommonCategories = ["Combat & duties", "Social", "Treasure", "Weather", "Idle"];
 
     /// <summary>
