@@ -91,6 +91,31 @@ name to people who open it in a browser. You can turn the link off at any time.
 | Duty complete / Clean clear | Duty cleared (clean = no deaths) |
 | Limit Break 1 / 2 / 3 | You start casting a Limit Break (works without a gauge too, e.g. Explorer Mode) |
 
+**Weather** (every job)
+
+The weather changes while you're out in the world. Zoning into a rainy area doesn't count, and
+nothing is said in duties or combat. Everyone in the zone sees the same weather, so one voice in the
+party comments.
+
+| Event | Weather |
+|---|---|
+| Clear skies | Clear Skies, Fair Skies |
+| Clouds | Clouds |
+| Fog | Fog |
+| Wind | Wind, Gales |
+| Rain | Rain, Showers |
+| Thunder | Thunder, Thunderstorms |
+| Snow | Snow, Blizzards |
+| Heat | Hot Spells, Heat Waves |
+| Dust | Dust Storms, Sandstorms |
+| Gloom | Gloom, umbral weather and anything stranger (Auroras, Moon Dust...) |
+
+**Idle** (every job)
+
+Random chatter after a long stretch out of combat and duties. On the Settings tab, choose how often
+(Off, Rare, Normal, Frequent) and how long to wait after your last fight or duty (default 5 minutes).
+Friends who are idle too hear the same line from the same one voice.
+
 **Job-specific**
 
 | Job | Events |
@@ -105,7 +130,7 @@ name to people who open it in a browser. You can turn the link off at any time.
 | RPR | Burst (Arcane Circle), Enshroud |
 | MNK, DRG, NIN, SAM, VPR, MCH, BLM, SMN, RDM, PCT | Burst window (each job's own big buff) |
 
-The Lines tab only shows the events that apply to the job you're editing; hover the (i) next to an
+Job abilities live on each job's page, not on ALL. The Lines tab only shows the events that apply to the job you're editing; hover the (i) next to an
 event to see exactly which buffs trigger it. For **Kardia** and **Dance partner**, tick a line's
 **Initial** box to make it play when you first choose a partner; unticked lines play when you switch. A stance or buff that's
 already on when you zone in doesn't trigger a line.
@@ -131,7 +156,8 @@ deleting them, and use **Edit lines ->** / **Edit trigger** to jump between an e
 
 ## Staying organized
 
-The Lines tab is split into **Every job**, **Job abilities** and **Custom events** (by category),
+The Lines tab is split into **Every job** (Combat & duties, Weather, Idle), **Job abilities** (on a
+job's page) and **Custom events** (by category),
 and remembers which sections you've collapsed. Use the search box to find events or line text, and
 **Hide empty** to show only events that already have lines (add lines to the others with
 **+ Add lines to...**).

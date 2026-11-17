@@ -182,6 +182,9 @@ public sealed class EventWatcher : IDisposable
         if (Suppressed && now >= suppressedUntil)
             Suppressed = false;
 
+        var busy = Plugin.Condition[ConditionFlag.InCombat] || InDuty();
+        if (busy || Plugin.ObjectTable.LocalPlayer == null) lastBusy = now;
+
         var me = Plugin.ObjectTable.LocalPlayer;
         var actors = me == null ? new List<Actor>() : Actors(me);
         if (me == null || actors.Count == 0)
@@ -283,6 +286,82 @@ public sealed class EventWatcher : IDisposable
         }
 
         CheckBigPull(me);
+        CheckWeather(now, busy);
+        CheckIdle(now, busy);
+    }
+
+    // ---- Weather and idle ------------------------------------------------------------------
+
+    private static bool InDuty() =>
+        Plugin.Condition[ConditionFlag.BoundByDuty] ||
+        Plugin.Condition[ConditionFlag.BoundByDuty56] ||
+        Plugin.Condition[ConditionFlag.BoundByDuty95];
+
+    private uint weatherTerritory;
+    private byte lastWeather;
+    private DateTime weatherSettleUntil;
+    private static readonly TimeSpan WeatherSettle = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// The weather changed while you stayed in the same zone. Zoning in only records the weather
+    /// (arriving somewhere rainy isn't a change), and nothing is said in duties or combat.
+    /// Everyone in the zone sees the same weather, so one voice comments for the party.
+    /// </summary>
+    private unsafe void CheckWeather(DateTime now, bool busy)
+    {
+        var wm = FFXIVClientStructs.FFXIV.Client.Game.WeatherManager.Instance();
+        if (wm == null) return;
+        var weather = wm->GetCurrentWeather();
+        var territory = Plugin.ClientState.TerritoryType;
+
+        if (territory != weatherTerritory)
+        {
+            weatherTerritory = territory;
+            lastWeather = weather;
+            weatherSettleUntil = now + WeatherSettle;
+            return;
+        }
+        if (weather == lastWeather) return;
+
+        var before = lastWeather;
+        lastWeather = weather;
+        if (busy || now < weatherSettleUntil || before == 0 || weather == 0) return;
+
+        var ev = WeatherEventFor(weather);
+        // Fair Skies to Clear Skies (and the like) isn't worth a comment.
+        if (ev != null && ev != WeatherEventFor(before))
+            SayShared(ev);
+    }
+
+    private static string? WeatherEventFor(byte weatherId) =>
+        KnownEvents.WeatherEvent(Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Weather>()
+                                       .GetRowOrDefault(weatherId)?.Name.ExtractText() ?? string.Empty);
+
+    private DateTime lastBusy = DateTime.UtcNow;
+    private long lastIdleMinute = -1;
+
+    /// <summary>
+    /// Once a minute, after a long enough quiet stretch, roll for an idle line. The roll uses the
+    /// server minute, so friends who are idle too get the same result and the same single speaker.
+    /// </summary>
+    private unsafe void CheckIdle(DateTime now, bool busy)
+    {
+        var minute = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.GetServerTime() / 60;
+        if (minute == lastIdleMinute) return;
+        lastIdleMinute = minute;
+
+        var cfg = Plugin.Instance.Configuration;
+        var chance = cfg.IdleFrequency switch
+        {
+            IdleFrequency.Rare => 3,
+            IdleFrequency.Normal => 7,
+            IdleFrequency.Frequent => 15,
+            _ => 0,
+        };
+        if (chance == 0 || busy || now - lastBusy < TimeSpan.FromMinutes(Math.Max(1, cfg.IdleMinutes))) return;
+
+        if (Fnv1a($"idle|{minute}") % 100 < (ulong)chance)
+            SayShared("idle");
     }
 
     /// <summary>A voiced character starts casting a Limit Break (level from the action's cast bar).</summary>
@@ -579,6 +658,7 @@ public sealed class EventWatcher : IDisposable
         firstSeen.Clear();
         wasBigPull = false;
         bigPullSince = null;
+        weatherTerritory = 0; // re-record the weather instead of commenting on a change we didn't watch
     }
 
     // ---- Game data lookups -----------------------------------------------------------------

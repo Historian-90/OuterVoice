@@ -141,6 +141,29 @@ public sealed partial class ConfigWindow : Window
         }
         HelpMarker("Voices get quieter with the game's Master and Voice sliders, and go silent when either is muted.");
 
+        Section("Idle");
+        var freq = (int)cfg.IdleFrequency;
+        ImGui.SetNextItemWidth(160);
+        if (ImGui.Combo("How often idle lines play", ref freq, "Off\0Rare (about every 30 min)\0Normal (about every 15 min)\0Frequent (about every 7 min)\0"))
+        {
+            cfg.IdleFrequency = (IdleFrequency)freq;
+            cfg.Save();
+        }
+        HelpMarker("Random chatter while you're out in the world: the timing varies, and it only starts after " +
+                   "you've been out of combat and duties for a while. Each idle line also has its own cooldown.");
+
+        if (cfg.IdleFrequency != IdleFrequency.Off)
+        {
+            var mins = cfg.IdleMinutes;
+            ImGui.SetNextItemWidth(160);
+            if (ImGui.SliderInt("Quiet time first", ref mins, 2, 30, "%d min"))
+            {
+                cfg.IdleMinutes = mins;
+                cfg.Save();
+            }
+            HelpMarker("Idle lines wait this long after your last fight or duty.");
+        }
+
         Section("Text");
         var textMode = (int)cfg.TextOutput;
         if (ImGui.Combo("Show text as", ref textMode, "Nothing\0Chat (only you see it)\0Toast\0Battle-talk pop-up\0"))

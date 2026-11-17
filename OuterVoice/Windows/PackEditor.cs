@@ -246,7 +246,10 @@ public sealed partial class ConfigWindow
         ImGui.Spacing();
         ImGui.BeginChild("##lines", new Vector2(0, 0));
 
-        var events = pack.AllEvents().Where(e => e.AppliesTo(editJob)).ToList();
+        // Job abilities aren't offered on ALL any more, but ALL lines written for them earlier still show.
+        var events = pack.AllEvents()
+                         .Where(e => e.AppliesTo(editJob) || jobLines.Any(l => l.Event == e.Name))
+                         .ToList();
         var q = lineSearch.Trim();
 
         bool Visible(KnownEvents.Info ev)
@@ -259,16 +262,35 @@ public sealed partial class ConfigWindow
             return !plugin.Configuration.LinesHideEmpty || evLines.Count > 0;
         }
 
-        // Every job
+        // Every job: combat & duties, weather, idle
         var common = events.Where(e => !e.IsCustom && e.Jobs == null && Visible(e)).ToList();
         if (common.Count > 0 && Section("lines:common", "EVERY JOB", true))
-            foreach (var ev in common) DrawEventLines(pack, jobLines, ev);
+        {
+            foreach (var group in common.GroupBy(e => e.Category ?? KnownEvents.CommonCategories[0])
+                                        .OrderBy(g => Array.IndexOf(KnownEvents.CommonCategories, g.Key)))
+            {
+                if (!SubSection($"lines:common:{group.Key}", group.Key)) continue;
+                if (group.Key == "Weather")
+                    HelpNote("Plays when the weather changes while you're out in the world. Not on zone-in, " +
+                             "and not in duties or combat. One voice in the party comments.");
+                else if (group.Key == "Idle")
+                    HelpNote($"Plays now and then after {plugin.Configuration.IdleMinutes}+ minutes out of combat and duties " +
+                             $"(how often: Settings, currently {plugin.Configuration.IdleFrequency}).");
+                foreach (var ev in group) DrawEventLines(pack, jobLines, ev);
+                ImGui.TreePop();
+            }
+        }
 
-        // Job abilities (collapsed by default on ALL, where they're rarely needed)
+        // Job abilities: on a job's page. On ALL only if old ALL lines exist for them.
         var jobEvents = events.Where(e => !e.IsCustom && e.Jobs != null && Visible(e)).ToList();
         if (jobEvents.Count > 0 && Section($"lines:job:{(editJob == VoicePack.SharedJob ? "all" : "job")}",
-                                           "JOB ABILITIES", editJob != VoicePack.SharedJob))
+                                           "JOB ABILITIES", true))
+        {
+            if (editJob == VoicePack.SharedJob)
+                HelpNote("These ALL lines are from before job abilities moved to each job's page. They still play " +
+                         "on every job that has the ability. Add them to a job instead to tidy this section away.");
             foreach (var ev in jobEvents) DrawEventLines(pack, jobLines, ev);
+        }
 
         // Custom events, grouped by category
         var custom = events.Where(e => e.IsCustom && Visible(e)).ToList();
@@ -458,6 +480,13 @@ public sealed partial class ConfigWindow
 
         ImGui.Unindent();
         ImGui.Spacing();
+    }
+
+    private static void HelpNote(string text)
+    {
+        ImGui.PushTextWrapPos();
+        ImGui.TextColored(Muted, text);
+        ImGui.PopTextWrapPos();
     }
 
     /// <summary>A top-level collapsible section whose open/closed state is remembered.</summary>
