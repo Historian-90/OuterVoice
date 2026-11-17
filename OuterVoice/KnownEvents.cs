@@ -42,6 +42,35 @@ public static class KnownEvents
         // General events: social
         new("party_join", "Joining a party", 2, 60, "You join someone's party. Friends with packs say their own line when they join yours.", "Social"),
 
+        // General events: places (you arrive somewhere of a different kind than before)
+        new("zone_city", "City", 1, 600, "You arrive in a city (from a different kind of place).", "Places"),
+        new("zone_field", "Field", 1, 600, "You arrive in an open field zone (from a different kind of place).", "Places"),
+        new("zone_inn", "Inn", 1, 600, "You enter an inn room.", "Places"),
+        new("zone_residential", "Residential area", 1, 600, "You arrive in a residential district.", "Places"),
+        new("zone_house", "House", 1, 600, "You enter a house (or its workshop).", "Places"),
+        new("zone_apartment", "Apartment", 1, 600, "You enter an apartment.", "Places"),
+        new("zone_saucer", "Gold Saucer", 1, 600, "You arrive at the Gold Saucer.", "Places"),
+        new("zone_island", "Island Sanctuary", 1, 600, "You arrive at your Island Sanctuary.", "Places"),
+
+        // General events: state (you start doing something)
+        new("state_swim", "Swimming", 1, 600, "You start swimming.", "State"),
+        new("state_dive", "Diving", 1, 600, "You dive underwater.", "State"),
+        new("state_mount", "Mounted", 1, 600, "You get on a mount.", "State"),
+        new("state_fly", "Flying", 1, 600, "Your mount takes off.", "State"),
+        new("state_craft", "Crafting", 1, 600, "You start crafting.", "State"),
+        new("state_gather", "Gathering", 1, 600, "You start gathering (mining, botany).", "State"),
+        new("state_fish", "Fishing", 1, 600, "You cast a line.", "State"),
+        new("state_perform", "Performing", 1, 600, "You start playing an instrument (Perform).", "State"),
+        new("state_weapon", "Weapon drawn", 1, 600, "You draw your weapon outside combat.", "State"),
+
+        // General events: time of day (Eorzea time)
+        new("time_dawn", "Dawn", 1, 1800, "Eorzea time reaches dawn (5:00).", "Time"),
+        new("time_morning", "Morning", 1, 1800, "Eorzea time reaches morning (7:00).", "Time"),
+        new("time_day", "Day", 1, 1800, "Eorzea time reaches midday (12:00).", "Time"),
+        new("time_dusk", "Dusk", 1, 1800, "Eorzea time reaches dusk (17:00).", "Time"),
+        new("time_evening", "Evening", 1, 1800, "Eorzea time reaches evening (19:00).", "Time"),
+        new("time_night", "Night", 1, 1800, "Eorzea time reaches night (22:00).", "Time"),
+
         // General events: treasure
         new("chest_open", "Treasure coffer", 2, 20, "You open a treasure coffer (dungeons, raids, and anywhere else). Coffers other people open don't count.", "Treasure"),
         new("chest_map", "Treasure map coffer", 3, 20, "You open a treasure map coffer.", "Treasure"),
@@ -75,7 +104,7 @@ public static class KnownEvents
     ];
 
     /// <summary>Subsections of GENERAL EVENTS, in display order.</summary>
-    public static readonly string[] CommonCategories = ["Combat & duties", "Social", "Treasure", "Weather", "Idle"];
+    public static readonly string[] CommonCategories = ["Combat & duties", "Social", "Treasure", "Places", "State", "Time", "Weather", "Idle"];
 
     /// <summary>
     /// The weather event for a weather name from the game's Weather sheet. Anything not listed

@@ -111,6 +111,24 @@ Duty Finder groups don't count.
 Only the person who opens the coffer speaks (you, or a friend with a pack when they open one).
 Coffers other people open stay silent, and so do coffers that are already open when you arrive.
 
+**Places** (general events)
+
+You arrive in a different kind of place: City, Field, Inn, Residential area, House, Apartment, Gold
+Saucer or Island Sanctuary. Going from one city to another is silent. Only your own lines play
+(each player hears their own arrival).
+
+**State** (general events)
+
+You start Swimming, Diving, Mounted, Flying, Crafting, Gathering, Fishing, Performing, or draw your
+weapon outside combat. Only your own lines play (only your client knows what you're doing), and
+nothing plays in duties or combat or for something you were already doing after a loading screen.
+
+**Time** (general events)
+
+Eorzea time moves into a new part of the day: Dawn (5:00), Morning (7:00), Day (12:00), Dusk (17:00),
+Evening (19:00), Night (22:00). One voice in the party comments, not in duties or combat. A new period
+comes every 9-15 real minutes, so each has a 30-minute cooldown.
+
 **Weather** (general events)
 
 The weather changes while you're out in the world, or you arrive somewhere with inclement weather
@@ -176,6 +194,12 @@ On the **Custom Events** tab you can make your own triggers. A custom event play
 - **Weather is**: the current weather is of a kind (Rain, Snow, Fog...)
 - **Idle for**: you've been standing still (out of combat and duties) for at least N minutes
 - **Joins a party**: you just joined someone's party
+- **Time of day**: Eorzea time is in any of the periods you tick (Dawn, Morning, Day, Dusk, Evening, Night)
+- **Place**: you're in any of the places you tick (City, Field, Inn, housing, Gold Saucer, Island
+  Sanctuary, Duty)
+- **Doing**: you're doing any of the things you tick (Swimming, Diving, Mounted, Flying, Crafting,
+  Gathering, Fishing, Performing, Weapon drawn, In combat). For friends' packs, only Mounted, Weapon
+  drawn and In combat can be seen.
 
 When a custom event and a built-in event fire for the same moment (a custom "Panhaimatinon" event
 and Sage's Big heal line, say), the custom line wins.
@@ -193,7 +217,7 @@ deleting them, and use **Edit lines ->** / **Edit trigger** to jump between an e
 
 ## Staying organized
 
-The Lines tab is split into **General events** (Combat & duties, Social, Treasure, Weather, Idle), **Job abilities** (on a
+The Lines tab is split into **General events** (Combat & duties, Social, Treasure, Places, State, Time, Weather, Idle), **Job abilities** (on a
 job's page) and **Custom events** (by category),
 and remembers which sections you've collapsed. Use the search box to find events or line text, and
 **Hide empty** to show only events that already have lines (add lines to the others with

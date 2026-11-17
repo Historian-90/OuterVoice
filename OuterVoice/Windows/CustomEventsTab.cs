@@ -9,7 +9,8 @@ namespace OuterVoice.Windows;
 public sealed partial class ConfigWindow
 {
     private static readonly string[] ConditionLabels =
-        ["Casting", "Has status", "Doing emote", "Has Moodle", "Opens coffer", "Weather is", "Idle for", "Joins a party"];
+        ["Casting", "Has status", "Doing emote", "Has Moodle", "Opens coffer", "Weather is", "Idle for", "Joins a party",
+         "Time of day", "Place", "Doing"];
 
     private static readonly string[] ScopeLabels = ["Player (You)", "Target"];
 
@@ -26,9 +27,48 @@ public sealed partial class ConfigWindow
         "",
         "",
         "",
+        "",
+        "",
+        "",
     ];
 
     private string customSearch = string.Empty;
+
+    /// <summary>A dropdown of checkboxes; the condition is true when any picked option is.</summary>
+    private void MultiSelect(CustomCondition c, string[] options, string tooltip)
+    {
+        var picked = WorldState.Picks(c.Value);
+        var preview = picked.Count switch
+        {
+            0 => "Pick...",
+            1 => options.FirstOrDefault(picked.Contains) ?? c.Value,
+            _ => $"{picked.Count} selected",
+        };
+
+        var changed = false;
+        if (ImGui.BeginCombo("##value", preview))
+        {
+            foreach (var option in options)
+            {
+                var on = picked.Contains(option);
+                if (ImGui.Checkbox(option, ref on))
+                {
+                    if (on) picked.Add(option);
+                    else picked.Remove(option);
+                    changed = true;
+                }
+            }
+            ImGui.EndCombo();
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(picked.Count > 1 ? $"{string.Join(", ", options.Where(picked.Contains))}\n{tooltip}" : tooltip);
+
+        if (changed)
+        {
+            c.Value = string.Join(",", options.Where(picked.Contains));
+            Changed();
+        }
+    }
 
     /// <summary>The value editor for a condition: free text, or a picker for the newer kinds.</summary>
     private void DrawConditionValue(CustomCondition c)
@@ -67,6 +107,16 @@ public sealed partial class ConfigWindow
                 }
                 break;
             }
+            case ConditionType.TimeOfDay:
+                MultiSelect(c, WorldState.PeriodLabels, "Eorzea time. Dawn 5-7, Morning 7-12, Day 12-17, Dusk 17-19, Evening 19-22, Night 22-5.");
+                break;
+            case ConditionType.Place:
+                MultiSelect(c, WorldState.PlaceLabels, "City, field, inn, housing, Gold Saucer, Island Sanctuary, or any duty.");
+                break;
+            case ConditionType.State:
+                MultiSelect(c, WorldState.StateLabels,
+                            "For friends' packs, only Mounted, Weapon drawn and In combat can be seen on your screen.");
+                break;
             case ConditionType.JoinParty:
                 if (c.Value.Length == 0)
                 {

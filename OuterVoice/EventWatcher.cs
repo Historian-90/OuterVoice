@@ -189,6 +189,8 @@ public sealed class EventWatcher : IDisposable
         var me = Plugin.ObjectTable.LocalPlayer;
         pendingLines.Clear();
         currentWeatherLabel = CurrentWeatherLabel();
+        currentPeriod = WorldState.CurrentPeriod().Label;
+        currentPlace = WorldState.CurrentPlace();
         CheckParty(now, me);
         var actors = me == null ? new List<Actor>() : Actors(me);
         if (me == null || actors.Count == 0)
@@ -296,6 +298,10 @@ public sealed class EventWatcher : IDisposable
         CheckBigPull(me);
         FlushPendingLines();
         CheckWeather(now, busy);
+        CheckTimeOfDay(busy);
+        var meActor = actors.FirstOrDefault(a => a.EntityId == me.EntityId);
+        CheckPlace(now, meActor);
+        CheckStates(meActor, me, busy);
         CheckIdle(now, busy);
     }
 
@@ -539,6 +545,84 @@ public sealed class EventWatcher : IDisposable
                 chestOpened.Remove(gone);
     }
 
+    // ---- Time of day, places, states ------------------------------------------------------
+
+    private string currentPeriod = string.Empty;
+    private string? currentPlace;
+    private string? lastPeriod;
+
+    /// <summary>
+    /// The Eorzean time of day moves into a new period (dawn, morning...). Everyone sees the same
+    /// clock, so one voice in the party comments. Not in duties or combat.
+    /// </summary>
+    private void CheckTimeOfDay(bool busy)
+    {
+        var (label, _, ev) = WorldState.CurrentPeriod();
+        if (lastPeriod == null || label == lastPeriod)
+        {
+            lastPeriod = label;
+            return;
+        }
+        lastPeriod = label;
+        if (!busy) SayShared(ev);
+    }
+
+    private uint placeTerritory;
+    private DateTime? placeCheckAt;
+    private string? lastPlace;
+
+    /// <summary>
+    /// You arrive in a different kind of place (city, inn, house...). Checked 5 s after the zone
+    /// changes, and only when the kind of place changed: city to city is silent. Your own line only.
+    /// </summary>
+    private void CheckPlace(DateTime now, Actor? meActor)
+    {
+        var territory = Plugin.ClientState.TerritoryType;
+        if (territory != placeTerritory)
+        {
+            placeTerritory = territory;
+            placeCheckAt = now + ZoneInDelay;
+            return;
+        }
+        if (placeCheckAt is not { } at || now < at) return;
+        placeCheckAt = null;
+
+        var place = WorldState.CurrentPlace();
+        var before = lastPlace;
+        lastPlace = place;
+        if (place == null || place == before || before == null && !placeSeenOnce)
+        {
+            placeSeenOnce = true; // the first place after logging in isn't an arrival
+            return;
+        }
+        if (WorldState.PlaceEvent(place) is { } ev && meActor != null)
+            Say(meActor, ev);
+    }
+
+    private bool placeSeenOnce;
+
+    private HashSet<string>? previousStates;
+
+    /// <summary>
+    /// You start swimming, mount up, cast a line... Your own line only (only your client knows what
+    /// you're doing), and not in duties or combat. States already true after a loading screen
+    /// don't count.
+    /// </summary>
+    private void CheckStates(Actor? meActor, IPlayerCharacter me, bool busy)
+    {
+        var states = WorldState.CurrentStates(me, isMe: true);
+        var before = previousStates;
+        previousStates = states;
+        if (before == null || busy || meActor == null) return;
+
+        foreach (var (label, ev) in WorldState.States)
+        {
+            if (ev == null || !states.Contains(label) || before.Contains(label)) continue;
+            Say(meActor, ev);
+            break; // one at a time
+        }
+    }
+
     // ---- Weather and idle ------------------------------------------------------------------
 
     private static bool InDuty() =>
@@ -742,6 +826,10 @@ public sealed class EventWatcher : IDisposable
                                          string.Equals(currentWeatherLabel, c.Value.Trim(), StringComparison.OrdinalIgnoreCase),
                 ConditionType.Idle => StillFor(actor) >= TimeSpan.FromMinutes(CustomCondition.IdleMinutes(c.Value)),
                 ConditionType.JoinParty => Recent(actor, MomentJoin),
+                ConditionType.TimeOfDay => WorldState.Picks(c.Value).Contains(currentPeriod),
+                ConditionType.Place => currentPlace != null && WorldState.Picks(c.Value).Contains(currentPlace),
+                ConditionType.State => WorldState.Picks(c.Value).Overlaps(
+                    WorldState.CurrentStates(actor.Obj, actor.EntityId == Plugin.ObjectTable.LocalPlayer?.EntityId)),
                 _ => false,
             });
 
@@ -1015,6 +1103,9 @@ public sealed class EventWatcher : IDisposable
         wasBigPull = false;
         bigPullSince = null;
         zoneInCheckAt = null;
+        placeTerritory = 0;
+        placeCheckAt = null;
+        previousStates = null;
         weatherTerritory = 0; // re-record the weather instead of commenting on a change we didn't watch
     }
 

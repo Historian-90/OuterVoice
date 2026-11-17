@@ -29,6 +29,15 @@ public enum ConditionType
 
     /// <summary>You just joined a party.</summary>
     JoinParty,
+
+    /// <summary>Eorzea time is in one of these periods. Value: "Dawn,Dusk" etc.</summary>
+    TimeOfDay,
+
+    /// <summary>You're in one of these kinds of place. Value: "City,Inn" etc.</summary>
+    Place,
+
+    /// <summary>You're doing one of these. Value: "Swimming,Diving" etc.</summary>
+    State,
 }
 
 /// <summary>Who a "Has status" condition looks at.</summary>
@@ -59,6 +68,9 @@ public class CustomCondition
         ConditionType.Weather => "Rain",
         ConditionType.Idle => "5",
         ConditionType.JoinParty => "yes",
+        ConditionType.TimeOfDay => "Night",
+        ConditionType.Place => "City",
+        ConditionType.State => "Swimming",
         _ => string.Empty,
     };
 
@@ -117,8 +129,17 @@ public class CustomEvent
         ConditionType.Weather => $"the weather is {(c.Value.Length > 0 ? c.Value.ToLowerInvariant() : "?")}",
         ConditionType.Idle => $"standing still {CustomCondition.IdleMinutes(c.Value)}+ min",
         ConditionType.JoinParty => "you join a party",
+        ConditionType.TimeOfDay => $"it's {OrList(c.Value)}",
+        ConditionType.Place => $"in {OrList(c.Value)}",
+        ConditionType.State => $"{OrList(c.Value)}",
         _ => c.Value,
     };
+
+    private static string OrList(string value)
+    {
+        var picks = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return picks.Length == 0 ? "?" : string.Join(" or ", picks).ToLowerInvariant();
+    }
 
     private static string Quote(string s) => s.Length > 0 ? $"\"{s}\"" : "?";
 

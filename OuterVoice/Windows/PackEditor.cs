@@ -274,6 +274,15 @@ public sealed partial class ConfigWindow
                     HelpNote("Plays when the weather changes while you're out in the world, or when you arrive somewhere " +
                              "with inclement weather (anything but clear skies and clouds) that you weren't already in. " +
                              "Not in duties or combat. One voice in the party comments.");
+                else if (group.Key == "Places")
+                    HelpNote("Plays when you arrive in a different kind of place (city to city is silent). Your own lines only.");
+                else if (group.Key == "State")
+                    HelpNote("Plays when you start doing something, outside duties and combat. Your own lines only: " +
+                             "only your client knows when you're swimming or fishing.");
+                else if (group.Key == "Time")
+                    HelpNote("Eorzea time: Dawn 5:00, Morning 7:00, Day 12:00, Dusk 17:00, Evening 19:00, Night 22:00. " +
+                             "A new period comes every 9-15 real minutes, so these have a 30-minute cooldown. " +
+                             "One voice in the party comments; not in duties or combat.");
                 else if (group.Key == "Idle")
                     HelpNote($"Plays now and then after {plugin.Configuration.IdleMinutes}+ minutes standing still, out of combat and duties " +
                              $"(how often: Settings, currently {plugin.Configuration.IdleFrequency}).");
