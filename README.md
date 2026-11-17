@@ -113,15 +113,31 @@ Coffers other people open stay silent, and so do coffers that are already open w
 
 **Places** (general events)
 
-You arrive in a different kind of place: City, Field, Inn, Residential area, House, Apartment, Gold
-Saucer or Island Sanctuary. Going from one city to another is silent. Only your own lines play
-(each player hears their own arrival).
+You arrive in a different kind of place: City, Field, Inn, Residential area, Home, House,
+Apartment, Gold Saucer or Island Sanctuary.
+
+- **Cities** have their own lines too: Limsa Lominsa, Gridania, Ul'dah, Ishgard, Idyllshire,
+  Rhalgr's Reach, Kugane, Doman Enclave, The Crystarium, Eulmore, Old Sharlayan, Radz-at-Han,
+  Tuliyollal and Solution Nine. A city with no lines of its own plays the plain City line. Moving
+  around inside the same city (Limsa's Upper to Lower Decks) is silent.
+- **Home** is your own house, FC house, private chambers or apartment (found automatically), or any
+  place you register as home under **Settings > Homes**. Anyone else's house plays House or
+  Apartment ("Pardon the intrusion"). With no Home lines, your House/Apartment lines play.
+- **Friends** play their arrival lines when they arrive where you are and you can see them. If you
+  arrive together, one of you speaks. A registered home with **Friends live here** ticked plays a
+  friend's Home line instead of House.
+- The first zone after logging in doesn't count.
+
+**Homes** (Settings): go inside a house or apartment and click **Register this place**. Rename it,
+tick **Home** (your Home line plays there) and **Friends live here** (friends' Home lines too).
+Registered places can also be picked in a custom event's **Place** condition.
 
 **State** (general events)
 
-You start Swimming, Diving, Mounted, Flying, Crafting, Gathering, Fishing, Performing, or draw your
-weapon outside combat. Only your own lines play (only your client knows what you're doing), and
-nothing plays in duties or combat or for something you were already doing after a loading screen.
+You (or a friend near you) start Swimming, Diving, Mounted, Flying, Crafting, Gathering, Fishing,
+Performing, or draw your weapon outside combat. Nothing plays in duties or combat, or for something
+already going on after a loading screen. Friends' Diving, Flying and Fishing can't be seen from your
+game, so those only play for you.
 
 **Time** (general events)
 
@@ -195,11 +211,11 @@ On the **Custom Events** tab you can make your own triggers. A custom event play
 - **Idle for**: you've been standing still (out of combat and duties) for at least N minutes
 - **Joins a party**: you just joined someone's party
 - **Time of day**: Eorzea time is in any of the periods you tick (Dawn, Morning, Day, Dusk, Evening, Night)
-- **Place**: you're in any of the places you tick (City, Field, Inn, housing, Gold Saucer, Island
-  Sanctuary, Duty)
+- **Place**: you're in any of the places you tick (City or a specific city, Field, Inn, Residential
+  area, Home, House, Apartment, Gold Saucer, Island Sanctuary, Duty, or a registered place)
 - **Doing**: you're doing any of the things you tick (Swimming, Diving, Mounted, Flying, Crafting,
-  Gathering, Fishing, Performing, Weapon drawn, In combat). For friends' packs, only Mounted, Weapon
-  drawn and In combat can be seen.
+  Gathering, Fishing, Performing, Weapon drawn, In combat). For friends' packs, Diving, Flying and
+  Fishing can't be seen.
 
 When a custom event and a built-in event fire for the same moment (a custom "Panhaimatinon" event
 and Sage's Big heal line, say), the custom line wins.

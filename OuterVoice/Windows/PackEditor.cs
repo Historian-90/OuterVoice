@@ -275,10 +275,12 @@ public sealed partial class ConfigWindow
                              "with inclement weather (anything but clear skies and clouds) that you weren't already in. " +
                              "Not in duties or combat. One voice in the party comments.");
                 else if (group.Key == "Places")
-                    HelpNote("Plays when you arrive in a different kind of place (city to city is silent). Your own lines only.");
+                    HelpNote("Plays when you (or a friend, arriving where you are) arrive in a different kind of place. " +
+                             "A city without its own lines plays the City line; Home plays House/Apartment if it has none. " +
+                             "Homes: Settings > Homes.");
                 else if (group.Key == "State")
-                    HelpNote("Plays when you start doing something, outside duties and combat. Your own lines only: " +
-                             "only your client knows when you're swimming or fishing.");
+                    HelpNote("Plays when you (or a friend near you) start doing something, outside duties and combat. " +
+                             "Friends' Diving, Flying and Fishing can't be seen, so those only play for you.");
                 else if (group.Key == "Time")
                     HelpNote("Eorzea time: Dawn 5:00, Morning 7:00, Day 12:00, Dusk 17:00, Evening 19:00, Night 22:00. " +
                              "A new period comes every 9-15 real minutes, so these have a 30-minute cooldown. " +

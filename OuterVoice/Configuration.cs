@@ -79,6 +79,9 @@ public class Configuration : IPluginConfiguration
     /// <summary>Friends' packs you follow through their Dropbox or OneDrive links.</summary>
     public List<Sync.Subscription> Subscriptions { get; set; } = new();
 
+    /// <summary>Houses and apartments you've registered (Settings > Homes).</summary>
+    public List<RegisteredPlace> RegisteredPlaces { get; set; } = new();
+
     /// <summary>How often idle lines play once you've been standing still for a while.</summary>
     public IdleFrequency IdleFrequency { get; set; } = IdleFrequency.Normal;
 
@@ -92,6 +95,21 @@ public class Configuration : IPluginConfiguration
     public HashSet<string> CollapsedSections { get; set; } = new();
 
     public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
+}
+
+[Serializable]
+public class RegisteredPlace
+{
+    /// <summary>The game's house id (HouseId.Id).</summary>
+    public ulong HouseId { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Arriving here plays your Home line.</summary>
+    public bool Home { get; set; } = true;
+
+    /// <summary>Friends who arrive here play their Home line too (they live here with you).</summary>
+    public bool FriendsHome { get; set; }
 }
 
 public enum IdleFrequency

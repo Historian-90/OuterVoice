@@ -111,11 +111,13 @@ public sealed partial class ConfigWindow
                 MultiSelect(c, WorldState.PeriodLabels, "Eorzea time. Dawn 5-7, Morning 7-12, Day 12-17, Dusk 17-19, Evening 19-22, Night 22-5.");
                 break;
             case ConditionType.Place:
-                MultiSelect(c, WorldState.PlaceLabels, "City, field, inn, housing, Gold Saucer, Island Sanctuary, or any duty.");
+                MultiSelect(c, WorldState.PlaceLabels(plugin.Configuration.RegisteredPlaces.Select(r => r.Name)),
+                            "Home = your own house/apartment (or one registered as home under Settings).\n" +
+                            "Registered places are added under Settings > Homes.");
                 break;
             case ConditionType.State:
                 MultiSelect(c, WorldState.StateLabels,
-                            "For friends' packs, only Mounted, Weapon drawn and In combat can be seen on your screen.");
+                            "For friends' packs, Diving, Flying and Fishing can't be seen on your screen.");
                 break;
             case ConditionType.JoinParty:
                 if (c.Value.Length == 0)

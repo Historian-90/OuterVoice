@@ -300,8 +300,9 @@ public sealed class EventWatcher : IDisposable
         CheckWeather(now, busy);
         CheckTimeOfDay(busy);
         var meActor = actors.FirstOrDefault(a => a.EntityId == me.EntityId);
-        CheckPlace(now, meActor);
+        CheckArrivals(now, me, meActor, actors);
         CheckStates(meActor, me, busy);
+        CheckFriendStates(actors, me, busy);
         CheckIdle(now, busy);
     }
 
@@ -568,38 +569,124 @@ public sealed class EventWatcher : IDisposable
     }
 
     private uint placeTerritory;
-    private DateTime? placeCheckAt;
-    private string? lastPlace;
+
+    /// <summary>Where you were last (place key), for "is this a different place?". Null right after login.</summary>
+    private string? lastPlaceKey;
+    private bool placeSeenOnce;
+
+    /// <summary>Friends' last known zone (from the party list) and the place key they came from.</summary>
+    private readonly Dictionary<uint, uint> friendTerritory = new();
+    private readonly Dictionary<uint, string?> friendCameFrom = new();
 
     /// <summary>
-    /// You arrive in a different kind of place (city, inn, house...). Checked 5 s after the zone
-    /// changes, and only when the kind of place changed: city to city is silent. Your own line only.
+    /// Arrivals close together (you and friends loading in together) are one round: when it's due,
+    /// one of the arrivals speaks, picked the same way on every player's screen.
     /// </summary>
-    private void CheckPlace(DateTime now, Actor? meActor)
+    private DateTime? arrivalDue;
+    private readonly HashSet<uint> arrivals = new();
+
+    /// <summary>
+    /// Arriving in a different kind of place (city, inn, your home...). Your own arrival, and a
+    /// friend's when they arrive where you are (they must be visible, so a friend across the world,
+    /// or in another house in the same district, doesn't count). City to the same city is silent,
+    /// and so is the first zone after logging in.
+    /// </summary>
+    private void CheckArrivals(DateTime now, IPlayerCharacter me, Actor? meActor, List<Actor> actors)
     {
         var territory = Plugin.ClientState.TerritoryType;
         if (territory != placeTerritory)
         {
             placeTerritory = territory;
-            placeCheckAt = now + ZoneInDelay;
-            return;
+            OpenArrival(now, me.EntityId);
         }
-        if (placeCheckAt is not { } at || now < at) return;
-        placeCheckAt = null;
 
-        var place = WorldState.CurrentPlace();
-        var before = lastPlace;
-        lastPlace = place;
-        if (place == null || place == before || before == null && !placeSeenOnce)
+        // Friends: watch their zone in the party list.
+        for (var i = 0; i < Plugin.PartyList.Length; i++)
         {
-            placeSeenOnce = true; // the first place after logging in isn't an arrival
-            return;
+            var m = Plugin.PartyList[i];
+            if (m == null || m.EntityId == me.EntityId || m.EntityId == 0) continue;
+            var t = m.Territory.RowId;
+            if (friendTerritory.TryGetValue(m.EntityId, out var was) && was != t)
+            {
+                friendCameFrom[m.EntityId] = WorldState.PlaceKeyOfTerritory(was);
+                if (t == territory) OpenArrival(now, m.EntityId);
+            }
+            friendTerritory[m.EntityId] = t;
         }
-        if (WorldState.PlaceEvent(place) is { } ev && meActor != null)
-            Say(meActor, ev);
+
+        if (arrivalDue is not { } due || now < due) return;
+        arrivalDue = null;
+
+        var candidates = new List<(Actor Actor, string Event)>();
+        foreach (var id in arrivals)
+        {
+            var isMe = id == me.EntityId;
+            var arrival = WorldState.Arrival(isMe);
+            string? before;
+            if (isMe)
+            {
+                before = lastPlaceKey;
+                lastPlaceKey = arrival?.Key;
+                if (!placeSeenOnce)
+                {
+                    placeSeenOnce = true; // the first place after logging in isn't an arrival
+                    continue;
+                }
+            }
+            else
+            {
+                friendCameFrom.TryGetValue(id, out before);
+            }
+
+            if (arrival is not { } a || a.Key == before) continue;
+            var actor = isMe ? meActor : actors.FirstOrDefault(x => x.EntityId == id && x.Obj != null);
+            if (actor == null) continue;
+            var ev = a.Events.FirstOrDefault(e => HasLines(actor, e));
+            if (ev != null) candidates.Add((actor, ev));
+        }
+        arrivals.Clear();
+        if (candidates.Count == 0) return;
+
+        candidates.Sort((x, y) => string.CompareOrdinal(x.Actor.CharacterId, y.Actor.CharacterId));
+        var seconds = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.GetServerTime();
+        var pick = candidates[(int)(Fnv1a($"arrive|{candidates[0].Event}|{seconds / 10}") % (ulong)candidates.Count)];
+        Say(pick.Actor, pick.Event);
     }
 
-    private bool placeSeenOnce;
+    private void OpenArrival(DateTime now, uint entityId)
+    {
+        arrivals.Add(entityId);
+        arrivalDue ??= now + ZoneInDelay;
+    }
+
+    private static bool HasLines(Actor actor, string eventName) =>
+        actor.Pack.LinesFor(actor.Job, eventName).Any(l => !string.IsNullOrWhiteSpace(l.Text) || l.AudioPath != null);
+
+    /// <summary>Friends' states last tick (only what's visible on your screen).</summary>
+    private readonly Dictionary<uint, HashSet<string>> friendStates = new();
+
+    /// <summary>
+    /// A friend near you starts swimming, mounts up, starts crafting... their own line plays.
+    /// Diving, flying and fishing can't be seen on other players. Not in duties or combat.
+    /// </summary>
+    private void CheckFriendStates(List<Actor> actors, IPlayerCharacter me, bool busy)
+    {
+        foreach (var actor in actors)
+        {
+            if (actor.EntityId == me.EntityId || actor.Obj == null) continue;
+            var states = WorldState.CurrentStates(actor.Obj, isMe: false);
+            var seen = friendStates.TryGetValue(actor.EntityId, out var before);
+            friendStates[actor.EntityId] = states;
+            if (!seen || busy || states.Contains("In combat")) continue;
+
+            foreach (var (label, ev) in WorldState.States)
+            {
+                if (ev == null || !states.Contains(label) || before!.Contains(label)) continue;
+                Say(actor, ev);
+                break;
+            }
+        }
+    }
 
     private HashSet<string>? previousStates;
 
@@ -827,7 +914,8 @@ public sealed class EventWatcher : IDisposable
                 ConditionType.Idle => StillFor(actor) >= TimeSpan.FromMinutes(CustomCondition.IdleMinutes(c.Value)),
                 ConditionType.JoinParty => Recent(actor, MomentJoin),
                 ConditionType.TimeOfDay => WorldState.Picks(c.Value).Contains(currentPeriod),
-                ConditionType.Place => currentPlace != null && WorldState.Picks(c.Value).Contains(currentPlace),
+                ConditionType.Place => WorldState.Picks(c.Value).Overlaps(
+                    WorldState.CurrentPlaceLabels(actor.EntityId == Plugin.ObjectTable.LocalPlayer?.EntityId)),
                 ConditionType.State => WorldState.Picks(c.Value).Overlaps(
                     WorldState.CurrentStates(actor.Obj, actor.EntityId == Plugin.ObjectTable.LocalPlayer?.EntityId)),
                 _ => false,
@@ -1104,7 +1192,7 @@ public sealed class EventWatcher : IDisposable
         bigPullSince = null;
         zoneInCheckAt = null;
         placeTerritory = 0;
-        placeCheckAt = null;
+        friendStates.Clear();
         previousStates = null;
         weatherTerritory = 0; // re-record the weather instead of commenting on a change we didn't watch
     }

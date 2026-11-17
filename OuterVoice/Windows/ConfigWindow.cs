@@ -164,6 +164,8 @@ public sealed partial class ConfigWindow : Window
             HelpMarker("How long you must stand still before idle lines can play. Moving, fighting, a duty, crafting or gathering starts the wait over.");
         }
 
+        DrawHomes(cfg);
+
         Section("Text");
         var textMode = (int)cfg.TextOutput;
         if (ImGui.Combo("Show text as", ref textMode, "Nothing\0Chat (only you see it)\0Toast\0Battle-talk pop-up\0"))
@@ -286,6 +288,80 @@ public sealed partial class ConfigWindow : Window
     }
 
     // ---- Helpers ---------------------------------------------------------------
+
+    /// <summary>Settings > Homes: register houses/apartments for Home lines and Place conditions.</summary>
+    private void DrawHomes(Configuration cfg)
+    {
+        Section("Homes");
+        ImGui.PushTextWrapPos();
+        ImGui.TextColored(Muted, "Your own house, FC house, private chambers and apartment count as home automatically. " +
+                                 "Register any other place here (say, your partner's house) to make it home too, or to " +
+                                 "use it in a custom event's Place condition.");
+        ImGui.PopTextWrapPos();
+
+        var here = WorldState.CurrentHouse();
+        if (here is { } h)
+        {
+            var registered = WorldState.RegisteredHere(h);
+            var owned = WorldState.IsOwnedByMe(h);
+            ImGui.TextUnformatted($"You're in: {WorldState.HouseName(h)}{(owned ? " (yours: already home)" : "")}");
+            if (registered == null)
+            {
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Register this place"))
+                {
+                    cfg.RegisteredPlaces.Add(new RegisteredPlace { HouseId = h.Id, Name = WorldState.HouseName(h), Home = !owned });
+                    cfg.Save();
+                }
+            }
+        }
+        else
+        {
+            ImGui.TextColored(Muted, "Go inside a house or apartment to register it.");
+        }
+
+        if (cfg.RegisteredPlaces.Count == 0) return;
+        if (!ImGui.BeginTable("##homes", 4, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit)) return;
+        ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("Home");
+        ImGui.TableSetupColumn("Friends live here");
+        ImGui.TableSetupColumn("");
+        ImGui.TableHeadersRow();
+
+        RegisteredPlace? remove = null;
+        foreach (var r in cfg.RegisteredPlaces)
+        {
+            ImGui.PushID(r.HouseId.ToString());
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.SetNextItemWidth(-1);
+            var name = r.Name;
+            if (ImGui.InputText("##name", ref name, 80)) r.Name = name;
+            if (ImGui.IsItemDeactivatedAfterEdit()) cfg.Save();
+
+            ImGui.TableNextColumn();
+            var home = r.Home;
+            if (ImGui.Checkbox("##home", ref home)) { r.Home = home; cfg.Save(); }
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Arriving here plays your Home line.");
+
+            ImGui.TableNextColumn();
+            var friends = r.FriendsHome;
+            if (ImGui.Checkbox("##friends", ref friends)) { r.FriendsHome = friends; cfg.Save(); }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Friends arriving here play their Home line too (they live here with you).\n" +
+                                 "Off: they play their House/Apartment line, like any visitor.");
+
+            ImGui.TableNextColumn();
+            if (ImGui.SmallButton("Remove")) remove = r;
+            ImGui.PopID();
+        }
+        ImGui.EndTable();
+        if (remove != null)
+        {
+            cfg.RegisteredPlaces.Remove(remove);
+            cfg.Save();
+        }
+    }
 
     private static void Section(string title)
     {
