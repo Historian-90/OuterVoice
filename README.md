@@ -37,6 +37,17 @@ character, sharing), **Friends** (friends' packs) and **Settings**.
 Lines under **Every job** play on any job. Each line has a weight (how often it's picked) and
 a mood note for whoever records it.
 
+## Portrait
+
+On the **Voice Pack** page, **Portrait > Choose a picture...** sets your character's picture (PNG or
+JPG). With **Settings > Text pop-ups > Show text as: Battle-talk pop-up**, it appears in the game's
+own pop-up, like an NPC's. The picture is cropped to a square (keeping the top, where the face
+usually is). It travels with your pack, so friends see it in their pop-ups too.
+
+This needs **Penumbra**: Outer Voice asks Penumbra to show your picture in place of a spare game
+icon while the plugin is running (nothing is installed, and it's gone when the plugin unloads).
+Without Penumbra, pop-ups show without a picture, or with the fallback icon set under Settings.
+
 ## Share with friends
 
 - **Voice Pack** page → **Export pack for friends...** makes one .zip (clips are compressed for

@@ -167,7 +167,7 @@ public sealed class Speaker
         }
 
         if (!string.IsNullOrWhiteSpace(line.Text) && (line.AudioPath != null || cfg.TextWithoutAudio || force))
-            ShowText(VoicePack.CleanText(DisplayName(pack)), VoicePack.CleanText(line.Text));
+            ShowText(VoicePack.CleanText(DisplayName(pack)), VoicePack.CleanText(line.Text), pack);
 
         return line;
     }
@@ -234,7 +234,7 @@ public sealed class Speaker
         }
     }
 
-    public void ShowText(string name, string text)
+    public void ShowText(string name, string text, VoicePack? pack = null)
     {
         var cfg = plugin.Configuration;
         switch (cfg.TextOutput)
@@ -251,7 +251,9 @@ public sealed class Speaker
                 Plugin.ToastGui.ShowNormal($"{name}: {text}", new ToastOptions { Speed = ToastSpeed.Slow });
                 break;
             case TextOutput.BattleTalk:
-                BattleTalk.Show(name, text, cfg.BattleTalkSeconds, cfg.PortraitIconId);
+                // The speaker's own portrait (from their pack) if it's ready, otherwise the icon from Settings.
+                var portrait = plugin.Portraits.IconFor(pack ?? Pack) ?? cfg.PortraitIconId;
+                BattleTalk.Show(name, text, cfg.BattleTalkSeconds, portrait);
                 break;
         }
     }

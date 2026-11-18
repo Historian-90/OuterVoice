@@ -67,6 +67,44 @@ public class VoicePack
     public Dictionary<string, List<Line>> Jobs { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     [JsonIgnore] public string Folder { get; set; } = string.Empty;
+
+    /// <summary>The character's portrait for battle-talk pop-ups: an image file in the pack folder.</summary>
+    public string Portrait { get; set; } = string.Empty;
+
+    /// <summary>Full path of the portrait image, if there is one (only ever inside the pack folder).</summary>
+    [JsonIgnore]
+    public string? PortraitPath
+    {
+        get
+        {
+            var name = Path.GetFileName(Portrait); // never let a pack point outside its own folder
+            if (string.IsNullOrEmpty(name) || Folder.Length == 0) return null;
+            var full = Path.Combine(Folder, name);
+            return File.Exists(full) ? full : null;
+        }
+    }
+
+    public static readonly string[] PortraitExtensions = [".png", ".jpg", ".jpeg"];
+    public const long MaxPortraitBytes = 8 * 1024 * 1024;
+
+    /// <summary>Copies an image into the pack folder as its portrait.</summary>
+    public void ImportPortrait(string sourcePath)
+    {
+        var ext = Path.GetExtension(sourcePath).ToLowerInvariant();
+        if (!PortraitExtensions.Contains(ext))
+            throw new InvalidDataException("Portraits must be .png or .jpg images.");
+        if (new FileInfo(sourcePath).Length > MaxPortraitBytes)
+            throw new InvalidDataException("That image is over 8 MB. Try a smaller one.");
+
+        foreach (var old in PortraitExtensions.Select(e => Path.Combine(Folder, "portrait" + e)).Where(File.Exists))
+            if (!string.Equals(old, sourcePath, StringComparison.OrdinalIgnoreCase)) File.Delete(old);
+
+        var name = "portrait" + ext;
+        var dest = Path.Combine(Folder, name);
+        if (!string.Equals(Path.GetFullPath(dest), Path.GetFullPath(sourcePath), StringComparison.OrdinalIgnoreCase))
+            File.Copy(sourcePath, dest, overwrite: true);
+        Portrait = name;
+    }
     [JsonIgnore] public IEnumerable<Line> AllLines => Jobs.Values.SelectMany(l => l);
 
     public static VoicePack Load(string folder)

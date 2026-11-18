@@ -25,6 +25,8 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IGameConfig GameConfig { get; private set; } = null!;
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
+    [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
+    [PluginService] internal static ITextureReadbackProvider TextureReadback { get; private set; } = null!;
 
     private const string Command = "/outervoice";
     private const string ShortCommand = "/ov";
@@ -37,6 +39,7 @@ public sealed class Plugin : IDalamudPlugin
     public Sync.Publisher Publisher { get; }
     public Sync.SubscriptionManager Subscriptions { get; private set; } = null!;
     public Speaker Speaker { get; }
+    public Portraits Portraits { get; }
     public string? PackError { get; private set; }
 
     /// <summary>True when the chosen folder has no voice pack yet (offer to create one).</summary>
@@ -67,6 +70,7 @@ public sealed class Plugin : IDalamudPlugin
         Lips = new LipSync();
         Publisher = new Sync.Publisher(this);
         Speaker = new Speaker(this);
+        Portraits = new Portraits();
         ReloadPack();
         PackSharing.LoadFriends(Speaker);
         Subscriptions = new Sync.SubscriptionManager(this);
@@ -98,6 +102,7 @@ public sealed class Plugin : IDalamudPlugin
         windowSystem.RemoveAllWindows();
 
         watcher.Dispose();
+        Portraits.Dispose();
         Subscriptions.Dispose();
         Player.Dispose();
         Lips.Dispose();

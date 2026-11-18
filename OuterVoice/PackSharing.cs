@@ -20,7 +20,7 @@ public static class PackSharing
     private const long MaxJsonBytes = 2L * 1024 * 1024;
     private const int MaxEntries = 5000;
     private const int ShareBitrate = 48000; // mono speech at 48 kbps is clear and ~3x smaller
-    private static readonly string[] AllowedExtensions = [".json", ".mp3", ".wav"];
+    private static readonly string[] AllowedExtensions = [".json", ".mp3", ".wav", ".png", ".jpg", ".jpeg"];
 
     public static string FriendsRoot =>
         Path.Combine(Plugin.PluginInterface.ConfigDirectory.FullName, "packs");
@@ -88,6 +88,8 @@ public static class PackSharing
                     throw new InvalidDataException("That pack unpacks to more than 400 MB, so it was refused.");
                 if (e.Name.Equals(VoicePack.FileName, StringComparison.OrdinalIgnoreCase) && e.Length > MaxJsonBytes)
                     throw new InvalidDataException("That pack's voicepack.json is suspiciously large, so it was refused.");
+                if (VoicePack.PortraitExtensions.Contains(Path.GetExtension(e.Name).ToLowerInvariant()) && e.Length > VoicePack.MaxPortraitBytes)
+                    throw new InvalidDataException("That pack's portrait image is over 8 MB, so it was refused.");
             }
         }
 
@@ -180,6 +182,15 @@ public static class PackSharing
                     copyLines[i].Audio = outName;
                     clips++;
                 }
+            }
+
+            // The portrait travels with the pack, so friends see it in their pop-ups.
+            copy.Portrait = string.Empty;
+            if (pack.PortraitPath is { } portrait)
+            {
+                var name = "portrait" + Path.GetExtension(portrait).ToLowerInvariant();
+                File.Copy(portrait, Path.Combine(staging, name), overwrite: true);
+                copy.Portrait = name;
             }
 
             copy.SaveTo(staging);

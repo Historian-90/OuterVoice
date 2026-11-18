@@ -112,7 +112,9 @@ public sealed partial class ConfigWindow
             pack.GlobalCooldownSeconds = gap;
             Changed();
         }
-        HelpMarker("The pack's suggested time between lines. Your own setting on the Settings tab overrides it.");
+        HelpMarker("The pack's suggested time between lines. Your own setting on the Settings page overrides it.");
+
+        DrawPortrait(pack);
 
         Section("Jobs");
         if (ImGui.BeginTable("jobs", 3, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
@@ -145,9 +147,63 @@ public sealed partial class ConfigWindow
 
             ImGui.EndTable();
         }
-        ImGui.TextColored(Muted, "Add or remove jobs on the Lines tab.");
+        ImGui.TextColored(Muted, "Add or remove jobs on the Lines page.");
 
         DrawExport(pack);
+    }
+
+    /// <summary>Voice Pack > Portrait: the picture shown in battle-talk pop-ups for this character.</summary>
+    private void DrawPortrait(VoicePack pack)
+    {
+        Section("Portrait");
+        var path = pack.PortraitPath;
+        const float preview = 96f;
+        if (path != null)
+        {
+            var wrap = Plugin.TextureProvider.GetFromFileAbsolute(path).GetWrapOrEmpty();
+            ImGui.Image(wrap.Handle, new Vector2(preview, preview * wrap.Height / Math.Max(1, wrap.Width)));
+            ImGui.SameLine();
+        }
+
+        ImGui.BeginGroup();
+        ImGui.PushTextWrapPos();
+        ImGui.TextColored(Muted, "Your character's picture in the game's battle-talk pop-up (Settings > Text pop-ups > " +
+                                 "Battle-talk pop-up). It's cropped to a square, keeping the top. Friends with your pack see it too. " +
+                                 "Needs Penumbra.");
+        ImGui.PopTextWrapPos();
+        if (ImGui.Button(path == null ? "Choose a picture..." : "Change picture..."))
+        {
+            plugin.FileDialogs.OpenFileDialog("Choose a portrait", "Images{.png,.jpg,.jpeg}", (ok, file) =>
+            {
+                if (!ok || string.IsNullOrEmpty(file)) return;
+                try
+                {
+                    pack.ImportPortrait(file);
+                    Changed();
+                }
+                catch (Exception ex)
+                {
+                    SetStatus(ex.Message, true);
+                }
+            });
+        }
+        if (path != null)
+        {
+            ImGui.SameLine();
+            if (ImGui.Button("Remove picture"))
+            {
+                pack.Portrait = string.Empty;
+                Changed();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Preview pop-up"))
+                plugin.Speaker.ShowText(plugin.Speaker.DisplayName(), "This is how your lines will look.", pack);
+        }
+        if (plugin.Portraits.Status.Length > 0 && path != null)
+            ImGui.TextColored(plugin.Portraits.StatusIsError ? Bad : Good, plugin.Portraits.Status);
+        if (path != null && plugin.Configuration.TextOutput != TextOutput.BattleTalk)
+            ImGui.TextColored(Warn, "Pop-ups are set to something other than Battle-talk, so the portrait won't show.");
+        ImGui.EndGroup();
     }
 
     private void LoadFolder(string folder)
