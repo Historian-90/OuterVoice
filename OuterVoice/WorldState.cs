@@ -217,10 +217,33 @@ public static class WorldState
     /// <summary>The kind of place you're in right now, or null for anywhere else (PvP, events...).</summary>
     public static unsafe string? CurrentPlace()
     {
-        if (Plugin.Condition[ConditionFlag.BoundByDuty] || Plugin.Condition[ConditionFlag.BoundByDuty56] ||
-            Plugin.Condition[ConditionFlag.BoundByDuty95])
-            return "Duty";
+        // Some places that aren't duties still set the game's "bound by duty" flag (Island Sanctuary,
+        // for one), so the kind of zone decides first, and the flag only counts for anything else.
+        if (KindHere() is { } kind) return kind;
+        return BoundByDutyFlag() ? "Duty" : null;
+    }
 
+    private static bool BoundByDutyFlag() =>
+        Plugin.Condition[ConditionFlag.BoundByDuty] || Plugin.Condition[ConditionFlag.BoundByDuty56] ||
+        Plugin.Condition[ConditionFlag.BoundByDuty95];
+
+    /// <summary>In a real duty (dungeon, trial, raid...), not just a zone that sets the duty flag.</summary>
+    public static bool InDuty() => BoundByDutyFlag() && KindHere() == null;
+
+    /// <summary>For Settings > Testing: where the plugin thinks you are, and why.</summary>
+    public static string Describe()
+    {
+        var id = Plugin.ClientState.TerritoryType;
+        var territory = Plugin.DataManager.GetExcelSheet<TerritoryType>().GetRowOrDefault(id);
+        var use = territory?.TerritoryIntendedUse.RowId ?? 0;
+        var city = CityOf(id)?.Label;
+        return $"Place: {CurrentPlace() ?? "(none)"}{(city != null ? $" ({city})" : "")}  |  zone {id} \"{TerritoryName(id)}\", " +
+               $"kind {(FFXIVClientStructs.FFXIV.Client.Enums.TerritoryIntendedUse)use} ({use})  |  duty flag {(BoundByDutyFlag() ? "on" : "off")}, " +
+               $"in a duty: {(InDuty() ? "yes" : "no")}";
+    }
+
+    private static unsafe string? KindHere()
+    {
         var territory = Plugin.DataManager.GetExcelSheet<TerritoryType>().GetRowOrDefault(Plugin.ClientState.TerritoryType);
         if (territory == null) return null;
 

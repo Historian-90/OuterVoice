@@ -248,7 +248,14 @@ public sealed partial class ConfigWindow : Window
         }
 
         if (Group("Testing", openByDefault: false))
+        {
+            ImGui.PushTextWrapPos();
+            ImGui.TextColored(Muted, WorldState.Describe());
+            ImGui.TextColored(Muted, $"Last arrival: {EventWatcher.LastArrival}");
+            ImGui.PopTextWrapPos();
+            ImGui.Spacing();
             DrawTest();
+        }
     }
 
     /// <summary>Settings > Chatter: each kind of event on/off, and how often.</summary>

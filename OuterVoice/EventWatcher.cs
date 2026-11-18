@@ -621,6 +621,7 @@ public sealed class EventWatcher : IDisposable
         foreach (var id in arrivals)
         {
             var isMe = id == me.EntityId;
+            var who = isMe ? "you" : actors.FirstOrDefault(x => x.EntityId == id)?.CharacterId ?? $"party member {id}";
             var arrival = WorldState.Arrival(isMe);
             string? before;
             if (isMe)
@@ -630,6 +631,7 @@ public sealed class EventWatcher : IDisposable
                 if (!placeSeenOnce)
                 {
                     placeSeenOnce = true; // the first place after logging in isn't an arrival
+                    NoteArrival($"{who} in {arrival?.Key ?? "an unlisted place"} (first place after login, silent)");
                     continue;
                 }
             }
@@ -638,11 +640,27 @@ public sealed class EventWatcher : IDisposable
                 friendCameFrom.TryGetValue(id, out before);
             }
 
-            if (arrival is not { } a || a.Key == before) continue;
+            if (arrival is not { } a)
+            {
+                NoteArrival($"{who}: {WorldState.CurrentPlace() ?? "this zone"} has no arrival lines (duty or unlisted place)");
+                continue;
+            }
+            if (a.Key == before)
+            {
+                NoteArrival($"{who} in {a.Key}, same kind of place as before, silent");
+                continue;
+            }
             var actor = isMe ? meActor : actors.FirstOrDefault(x => x.EntityId == id && x.Obj != null);
-            if (actor == null) continue;
+            if (actor == null)
+            {
+                NoteArrival($"{who} arrived in {a.Key}, but {(isMe ? "your pack has no lines for this job" : "they aren't visible")}");
+                continue;
+            }
             var ev = a.Events.FirstOrDefault(e => HasLines(actor, e) || FindVariant(actor, e) != null);
             if (ev != null) candidates.Add((actor, ev));
+            NoteArrival(ev != null
+                ? $"{who} arrived in {a.Key} (from {before ?? "nowhere known"}), playing {ev}"
+                : $"{who} arrived in {a.Key}, but there are no lines for {string.Join(" / ", a.Events)}");
         }
         arrivals.Clear();
         if (candidates.Count == 0) return;
@@ -712,10 +730,16 @@ public sealed class EventWatcher : IDisposable
 
     // ---- Weather and idle ------------------------------------------------------------------
 
-    private static bool InDuty() =>
-        Plugin.Condition[ConditionFlag.BoundByDuty] ||
-        Plugin.Condition[ConditionFlag.BoundByDuty56] ||
-        Plugin.Condition[ConditionFlag.BoundByDuty95];
+    private static bool InDuty() => WorldState.InDuty();
+
+    /// <summary>What the last arrival check decided, for Settings > Testing.</summary>
+    public static string LastArrival { get; private set; } = "No arrivals checked yet.";
+
+    private static void NoteArrival(string text)
+    {
+        LastArrival = $"{DateTime.Now:t}: {text}";
+        Plugin.Log.Information($"Arrival: {text}");
+    }
 
     private uint weatherTerritory;
     private byte lastWeather;
