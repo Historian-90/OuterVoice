@@ -19,7 +19,10 @@ public sealed class Portraits : IDisposable
 {
     private const string Tag = "Outer Voice portraits";
     private const int Priority = 99;
-    private const int Size = 512;
+    // The pop-up stretches the picture to fill a portrait area about 5:4 (wide), so the canvas has the
+    // same shape; the picture itself keeps its own proportions inside it.
+    private const int Width = 640;
+    private const int Height = 512;
 
     /// <summary>Icon numbers well away from anything the game uses.</summary>
     private const uint IconBase = 290000;
@@ -112,7 +115,7 @@ public sealed class Portraits : IDisposable
                 {
                     var icon = nextIcon++;
                     var file = Path.Combine(folder, $"{icon}.tex");
-                    WriteTex(file, pixels, Size, Size);
+                    WriteTex(file, pixels, Width, Height);
                     redirects[IconPath(icon, false)] = file;
                     redirects[IconPath(icon, true)] = file;
                     ready[character] = (key, icon);
@@ -180,9 +183,9 @@ public sealed class Portraits : IDisposable
     // ---- Image to texture ---------------------------------------------------------------------
 
     /// <summary>
-    /// Places the whole image (no cropping) on a transparent square canvas: scaled so its longer side
-    /// is <paramref name="sizePercent"/> of the canvas, at the chosen position. The game draws the
-    /// canvas at a fixed size, so this is how the picture is made smaller or moved.
+    /// Places the whole image (no cropping, proportions kept) on a transparent canvas the shape of the
+    /// pop-up's portrait area: at 100% it fits the area exactly, smaller sizes shrink it, and it sits
+    /// at the chosen position. The game stretches the canvas to the area, so the shapes must match.
     /// </summary>
     private static async Task<byte[]> Compose(string path, int sizePercent, int posX, int posY)
     {
@@ -191,13 +194,13 @@ public sealed class Portraits : IDisposable
             wrap, new TextureModificationArgs { DxgiFormat = 87 }, leaveWrapOpen: true); // 87 = B8G8R8A8
 
         int w = spec.Width, h = spec.Height, pitch = spec.Pitch;
-        var scale = Math.Clamp(sizePercent, 10, 100) / 100f * Size / Math.Max(w, h);
-        var dw = Math.Max(1, (int)MathF.Round(w * scale));
-        var dh = Math.Max(1, (int)MathF.Round(h * scale));
-        var left = (int)MathF.Round((Size - dw) * Math.Clamp(posX, 0, 100) / 100f);
-        var top = (int)MathF.Round((Size - dh) * Math.Clamp(posY, 0, 100) / 100f);
+        var scale = Math.Clamp(sizePercent, 10, 100) / 100f * Math.Min(Width / (float)w, Height / (float)h);
+        var dw = Math.Clamp((int)MathF.Round(w * scale), 1, Width);
+        var dh = Math.Clamp((int)MathF.Round(h * scale), 1, Height);
+        var left = (int)MathF.Round((Width - dw) * Math.Clamp(posX, 0, 100) / 100f);
+        var top = (int)MathF.Round((Height - dh) * Math.Clamp(posY, 0, 100) / 100f);
 
-        var output = new byte[Size * Size * 4]; // fully transparent
+        var output = new byte[Width * Height * 4]; // fully transparent
         var inv = 1f / scale;
         for (var y = 0; y < dh; y++)
         {
@@ -205,7 +208,7 @@ public sealed class Portraits : IDisposable
             for (var x = 0; x < dw; x++)
             {
                 var sx = (x + 0.5f) * inv - 0.5f;
-                Bilinear(data, pitch, w, h, sx, sy, output, ((top + y) * Size + left + x) * 4);
+                Bilinear(data, pitch, w, h, sx, sy, output, ((top + y) * Width + left + x) * 4);
             }
         }
         return output;
