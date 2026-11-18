@@ -48,9 +48,6 @@ public class Configuration : IPluginConfiguration
     /// <summary>Name on the battle-talk pop-up. Empty = use the pack's character first name.</summary>
     public string SpeakerName { get; set; } = string.Empty;
 
-    /// <summary>Icon ID used as the battle-talk portrait (0 = no portrait).</summary>
-    public uint PortraitIconId { get; set; } = 0;
-
     /// <summary>How long the battle-talk pop-up stays up, in seconds.</summary>
     public float BattleTalkSeconds { get; set; } = 4f;
 

@@ -50,7 +50,7 @@ portraits. The picture and its framing travel with your pack, so friends see it 
 
 This needs **Penumbra**: Outer Voice asks Penumbra to show your picture in place of a spare game
 icon while the plugin is running (nothing is installed, and it's gone when the plugin unloads).
-Without Penumbra, pop-ups show without a picture, or with the fallback icon set under Settings.
+Without Penumbra, pop-ups show without a picture.
 
 ## Share with friends
 

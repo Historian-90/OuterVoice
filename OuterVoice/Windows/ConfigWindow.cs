@@ -208,15 +208,6 @@ public sealed partial class ConfigWindow : Window
                     cfg.Save();
                 }
 
-                var icon = (int)cfg.PortraitIconId;
-                ImGui.SetNextItemWidth(220);
-                if (ImGui.InputInt("Fallback portrait icon", ref icon))
-                {
-                    cfg.PortraitIconId = (uint)Math.Max(0, icon);
-                    cfg.Save();
-                }
-                HelpMarker("Voice packs with a picture (Voice Pack page > Portrait) show it in their pop-ups (needs Penumbra).\n" +
-                           "This game icon number is used for speakers without one. 0 = no portrait.");
             }
 
             if (cfg.TextOutput is TextOutput.Chat or TextOutput.BattleTalk)

@@ -251,8 +251,8 @@ public sealed class Speaker
                 Plugin.ToastGui.ShowNormal($"{name}: {text}", new ToastOptions { Speed = ToastSpeed.Slow });
                 break;
             case TextOutput.BattleTalk:
-                // The speaker's own portrait (from their pack) if it's ready, otherwise the icon from Settings.
-                var portrait = plugin.Portraits.IconFor(pack ?? Pack) ?? cfg.PortraitIconId;
+                // The speaker's own portrait (from their pack) if it's ready; 0 = a pop-up without a picture.
+                var portrait = plugin.Portraits.IconFor(pack ?? Pack) ?? 0u;
                 BattleTalk.Show(name, text, cfg.BattleTalkSeconds, portrait, (byte)Math.Clamp(cfg.BattleTalkStyle, 0, 255));
                 break;
         }
