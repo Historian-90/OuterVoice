@@ -9,13 +9,13 @@ namespace OuterVoice;
 /// </summary>
 public static class BattleTalk
 {
-    public static void Show(string name, string text, float seconds, uint portraitIconId)
+    public static void Show(string name, string text, float seconds, uint portraitIconId, byte style = 0)
     {
         // Game UI must be touched from the game's main thread.
-        Plugin.Framework.RunOnFrameworkThread(() => ShowNow(name, text, seconds, portraitIconId));
+        Plugin.Framework.RunOnFrameworkThread(() => ShowNow(name, text, seconds, portraitIconId, style));
     }
 
-    private static unsafe void ShowNow(string name, string text, float seconds, uint portraitIconId)
+    private static unsafe void ShowNow(string name, string text, float seconds, uint portraitIconId, byte style)
     {
         try
         {
@@ -24,9 +24,9 @@ public static class BattleTalk
                 return;
 
             if (portraitIconId != 0)
-                ui->ShowBattleTalkImage(name, text, seconds, portraitIconId, 0, 0, 0);
+                ui->ShowBattleTalkImage(name, text, seconds, portraitIconId, style, 0, 0);
             else
-                ui->ShowBattleTalk(name, text, seconds, 0);
+                ui->ShowBattleTalk(name, text, seconds, style);
         }
         catch (Exception ex)
         {

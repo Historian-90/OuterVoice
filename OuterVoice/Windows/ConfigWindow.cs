@@ -186,6 +186,18 @@ public sealed partial class ConfigWindow : Window
 
             if (cfg.TextOutput == TextOutput.BattleTalk)
             {
+                var style = cfg.BattleTalkStyle;
+                ImGui.SetNextItemWidth(220);
+                if (ImGui.SliderInt("Box style", ref style, 0, 9))
+                {
+                    cfg.BattleTalkStyle = style;
+                    cfg.Save();
+                }
+                if (ImGui.IsItemDeactivatedAfterEdit())
+                    plugin.Speaker.ShowText(plugin.Speaker.DisplayName(), $"This is box style {style}.");
+                HelpMarker("The game has a few pop-up looks, picked by number (0 = the usual one).\n" +
+                           "Changing it shows a preview. Some numbers may look the same.");
+
                 var secs = cfg.BattleTalkSeconds;
                 ImGui.SetNextItemWidth(220);
                 if (ImGui.SliderFloat("Pop-up duration", ref secs, 1f, 10f, "%.1f sec"))

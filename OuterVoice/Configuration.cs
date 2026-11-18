@@ -82,6 +82,9 @@ public class Configuration : IPluginConfiguration
     /// <summary>Houses and apartments you've registered (Settings > Homes).</summary>
     public List<RegisteredPlace> RegisteredPlaces { get; set; } = new();
 
+    /// <summary>Battle-talk pop-up style number passed to the game (0 = the usual box).</summary>
+    public int BattleTalkStyle { get; set; }
+
     /// <summary>How chatty each kind of event is (missing = Normal). Idle uses IdleFrequency instead.</summary>
     public Dictionary<string, Chattiness> Chatter { get; set; } = new();
 

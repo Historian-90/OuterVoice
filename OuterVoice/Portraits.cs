@@ -74,10 +74,10 @@ public sealed class Portraits : IDisposable
     public uint? IconFor(VoicePack? pack)
     {
         if (pack?.PortraitPath is not { } src) return null;
-        var key = KeyOf(src);
+        var key = $"{KeyOf(src)}|{pack.PortraitSize}|{pack.PortraitX}|{pack.PortraitY}";
         if (ready.TryGetValue(pack.Character, out var r) && r.Key == key)
             return r.Icon != 0 && registered ? r.Icon : null;
-        Prepare(pack.Character, src, key);
+        Prepare(pack.Character, src, key, pack.PortraitSize, pack.PortraitX, pack.PortraitY);
         return null;
     }
 
@@ -100,14 +100,14 @@ public sealed class Portraits : IDisposable
         return $"{path}|{info.LastWriteTimeUtc.Ticks}|{info.Length}";
     }
 
-    private void Prepare(string character, string src, string key)
+    private void Prepare(string character, string src, string key, int size, int posX, int posY)
     {
         if (!building.Add(character)) return;
         _ = Task.Run(async () =>
         {
             try
             {
-                var pixels = await LoadSquare(src);
+                var pixels = await Compose(src, size, posX, posY);
                 await Plugin.Framework.RunOnFrameworkThread(() =>
                 {
                     var icon = nextIcon++;
@@ -179,27 +179,33 @@ public sealed class Portraits : IDisposable
 
     // ---- Image to texture ---------------------------------------------------------------------
 
-    /// <summary>Loads an image and crops it to a square (centered, top-weighted so faces stay in).</summary>
-    private static async Task<byte[]> LoadSquare(string path)
+    /// <summary>
+    /// Places the whole image (no cropping) on a transparent square canvas: scaled so its longer side
+    /// is <paramref name="sizePercent"/> of the canvas, at the chosen position. The game draws the
+    /// canvas at a fixed size, so this is how the picture is made smaller or moved.
+    /// </summary>
+    private static async Task<byte[]> Compose(string path, int sizePercent, int posX, int posY)
     {
         using var wrap = await Plugin.TextureProvider.GetFromFileAbsolute(path).RentAsync();
         var (spec, data) = await Plugin.TextureReadback.GetRawImageAsync(
             wrap, new TextureModificationArgs { DxgiFormat = 87 }, leaveWrapOpen: true); // 87 = B8G8R8A8
 
         int w = spec.Width, h = spec.Height, pitch = spec.Pitch;
-        var side = Math.Min(w, h);
-        var x0 = (w - side) / 2;
-        var y0 = (h - side) / 4; // portraits: keep more of the top (the face) than the bottom
+        var scale = Math.Clamp(sizePercent, 10, 100) / 100f * Size / Math.Max(w, h);
+        var dw = Math.Max(1, (int)MathF.Round(w * scale));
+        var dh = Math.Max(1, (int)MathF.Round(h * scale));
+        var left = (int)MathF.Round((Size - dw) * Math.Clamp(posX, 0, 100) / 100f);
+        var top = (int)MathF.Round((Size - dh) * Math.Clamp(posY, 0, 100) / 100f);
 
-        var output = new byte[Size * Size * 4];
-        var scale = side / (float)Size;
-        for (var y = 0; y < Size; y++)
+        var output = new byte[Size * Size * 4]; // fully transparent
+        var inv = 1f / scale;
+        for (var y = 0; y < dh; y++)
         {
-            var sy = y0 + (y + 0.5f) * scale - 0.5f;
-            for (var x = 0; x < Size; x++)
+            var sy = (y + 0.5f) * inv - 0.5f;
+            for (var x = 0; x < dw; x++)
             {
-                var sx = x0 + (x + 0.5f) * scale - 0.5f;
-                Bilinear(data, pitch, w, h, sx, sy, output, (y * Size + x) * 4);
+                var sx = (x + 0.5f) * inv - 0.5f;
+                Bilinear(data, pitch, w, h, sx, sy, output, ((top + y) * Size + left + x) * 4);
             }
         }
         return output;

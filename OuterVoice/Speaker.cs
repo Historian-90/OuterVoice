@@ -253,7 +253,7 @@ public sealed class Speaker
             case TextOutput.BattleTalk:
                 // The speaker's own portrait (from their pack) if it's ready, otherwise the icon from Settings.
                 var portrait = plugin.Portraits.IconFor(pack ?? Pack) ?? cfg.PortraitIconId;
-                BattleTalk.Show(name, text, cfg.BattleTalkSeconds, portrait);
+                BattleTalk.Show(name, text, cfg.BattleTalkSeconds, portrait, (byte)Math.Clamp(cfg.BattleTalkStyle, 0, 255));
                 break;
         }
     }

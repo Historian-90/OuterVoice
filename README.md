@@ -41,8 +41,12 @@ a mood note for whoever records it.
 
 On the **Voice Pack** page, **Portrait > Choose a picture...** sets your character's picture (PNG or
 JPG). With **Settings > Text pop-ups > Show text as: Battle-talk pop-up**, it appears in the game's
-own pop-up, like an NPC's. The picture is cropped to a square (keeping the top, where the face
-usually is). It travels with your pack, so friends see it in their pop-ups too.
+own pop-up, like an NPC's. **Size**, **Left / right** and **Top / bottom** frame it (each change
+shows a preview pop-up). A PNG with a transparent background looks most like the game's NPC
+portraits. The picture and its framing travel with your pack, so friends see it in their pop-ups.
+
+**Settings > Text pop-ups > Box style** picks between the game's pop-up looks by number (0 is the
+usual one); changing it shows a preview.
 
 This needs **Penumbra**: Outer Voice asks Penumbra to show your picture in place of a spare game
 icon while the plugin is running (nothing is installed, and it's gone when the plugin unloads).

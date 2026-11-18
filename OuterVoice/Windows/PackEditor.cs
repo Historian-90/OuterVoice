@@ -152,6 +152,8 @@ public sealed partial class ConfigWindow
         DrawExport(pack);
     }
 
+    private bool previewPortraitWhenReady;
+
     /// <summary>Voice Pack > Portrait: the picture shown in battle-talk pop-ups for this character.</summary>
     private void DrawPortrait(VoicePack pack)
     {
@@ -168,8 +170,8 @@ public sealed partial class ConfigWindow
         ImGui.BeginGroup();
         ImGui.PushTextWrapPos();
         ImGui.TextColored(Muted, "Your character's picture in the game's battle-talk pop-up (Settings > Text pop-ups > " +
-                                 "Battle-talk pop-up). It's cropped to a square, keeping the top. Friends with your pack see it too. " +
-                                 "Needs Penumbra.");
+                                 "Battle-talk pop-up). Friends with your pack see it too. Needs Penumbra. Tip: a PNG with a " +
+                                 "transparent background looks like the game's own NPC portraits.");
         ImGui.PopTextWrapPos();
         if (ImGui.Button(path == null ? "Choose a picture..." : "Change picture..."))
         {
@@ -198,6 +200,36 @@ public sealed partial class ConfigWindow
             ImGui.SameLine();
             if (ImGui.Button("Preview pop-up"))
                 plugin.Speaker.ShowText(plugin.Speaker.DisplayName(), "This is how your lines will look.", pack);
+        }
+        if (path != null)
+        {
+            // Framing: applied when you let go of a slider, then previewed once the new picture is ready.
+            ImGui.SetNextItemWidth(200);
+            var size = pack.PortraitSize;
+            if (ImGui.SliderInt("Size##portrait", ref size, 10, 100, "%d%%")) pack.PortraitSize = size;
+            var sizeDone = ImGui.IsItemDeactivatedAfterEdit();
+            ImGui.SetNextItemWidth(200);
+            var px = pack.PortraitX;
+            if (ImGui.SliderInt("Left / right##portrait", ref px, 0, 100, "%d")) pack.PortraitX = px;
+            var xDone = ImGui.IsItemDeactivatedAfterEdit();
+            ImGui.SetNextItemWidth(200);
+            var py = pack.PortraitY;
+            if (ImGui.SliderInt("Top / bottom##portrait", ref py, 0, 100, "%d")) pack.PortraitY = py;
+            var yDone = ImGui.IsItemDeactivatedAfterEdit();
+            HelpMarker("Size: how big the picture is in the pop-up's portrait area.\n" +
+                       "Left / right and Top / bottom: where it sits (Top / bottom 100 = resting on the text box).\n" +
+                       "A preview pop-up shows each change.");
+            if (sizeDone || xDone || yDone)
+            {
+                Changed();
+                plugin.Portraits.IconFor(pack); // start rebuilding now
+                previewPortraitWhenReady = true;
+            }
+            if (previewPortraitWhenReady && plugin.Portraits.IconFor(pack) != null)
+            {
+                previewPortraitWhenReady = false;
+                plugin.Speaker.ShowText(plugin.Speaker.DisplayName(), "This is how your lines will look.", pack);
+            }
         }
         if (plugin.Portraits.Status.Length > 0 && path != null)
             ImGui.TextColored(plugin.Portraits.StatusIsError ? Bad : Good, plugin.Portraits.Status);

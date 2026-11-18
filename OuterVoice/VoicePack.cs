@@ -84,6 +84,15 @@ public class VoicePack
         }
     }
 
+    /// <summary>Portrait size in the pop-up, as a percentage of the portrait area (10-100).</summary>
+    public int PortraitSize { get; set; } = 55;
+
+    /// <summary>Portrait position: 0 = far left, 100 = far right.</summary>
+    public int PortraitX { get; set; } = 30;
+
+    /// <summary>Portrait position: 0 = top, 100 = bottom (resting on the text box).</summary>
+    public int PortraitY { get; set; } = 100;
+
     public static readonly string[] PortraitExtensions = [".png", ".jpg", ".jpeg"];
     public const long MaxPortraitBytes = 8 * 1024 * 1024;
 
