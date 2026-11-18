@@ -84,6 +84,17 @@ public sealed class Speaker
 
         var def = pack.GetEvent(eventName);
         var now = DateTime.UtcNow;
+
+        // Settings > Chatter: categories can be switched off, or made less / more frequent.
+        var chatter = cfg.ChatterFor(KnownEvents.ChatterCategory(pack, eventName));
+        if (!force && chatter == Chattiness.Off && KnownEvents.ChatterCategory(pack, eventName) != "Idle")
+            return null;
+        var cooldownSeconds = chatter switch
+        {
+            Chattiness.Less => def.CooldownSeconds * 3,
+            Chattiness.More => def.CooldownSeconds / 2,
+            _ => def.CooldownSeconds,
+        };
         var cooldownKey = $"{pack.Character}|{eventName}|{initial}";
 
         if (!force)
@@ -99,7 +110,7 @@ public sealed class Speaker
                 return null;
             if (!interrupts && (now - lastAnyLine).TotalSeconds < globalCd)
                 return null;
-            if (lastEventTime.TryGetValue(cooldownKey, out var last) && (now - last).TotalSeconds < def.CooldownSeconds)
+            if (lastEventTime.TryGetValue(cooldownKey, out var last) && (now - last).TotalSeconds < cooldownSeconds)
                 return null;
         }
 

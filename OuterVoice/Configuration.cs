@@ -82,6 +82,12 @@ public class Configuration : IPluginConfiguration
     /// <summary>Houses and apartments you've registered (Settings > Homes).</summary>
     public List<RegisteredPlace> RegisteredPlaces { get; set; } = new();
 
+    /// <summary>How chatty each kind of event is (missing = Normal). Idle uses IdleFrequency instead.</summary>
+    public Dictionary<string, Chattiness> Chatter { get; set; } = new();
+
+    public Chattiness ChatterFor(string category) =>
+        Chatter.TryGetValue(category, out var c) ? c : Chattiness.Normal;
+
     /// <summary>How often idle lines play once you've been standing still for a while.</summary>
     public IdleFrequency IdleFrequency { get; set; } = IdleFrequency.Normal;
 
@@ -110,6 +116,15 @@ public class RegisteredPlace
 
     /// <summary>Friends who arrive here play their Home line too (they live here with you).</summary>
     public bool FriendsHome { get; set; }
+}
+
+/// <summary>Off, or a cooldown multiplier: Less = 3x as long between lines, More = half as long.</summary>
+public enum Chattiness
+{
+    Off,
+    Less,
+    Normal,
+    More,
 }
 
 public enum IdleFrequency

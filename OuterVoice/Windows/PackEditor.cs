@@ -479,5 +479,5 @@ public sealed partial class ConfigWindow
     private static IEnumerable<KeyValuePair<string, List<Line>>> OrderedJobs(VoicePack pack) =>
         pack.Jobs.OrderBy(j => j.Key == VoicePack.SharedJob).ThenBy(j => j.Key);
 
-    private static string JobLabel(string job) => job == VoicePack.SharedJob ? "ALL (any job)" : job;
+    private static string JobLabel(string job) => job == VoicePack.SharedJob ? "Every job" : job;
 }

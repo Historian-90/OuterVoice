@@ -403,7 +403,7 @@ public sealed partial class ConfigWindow
         ImGui.TextColored(Muted, "+ New: make your own event from conditions (an emote, a buff, a Moodle, a place, the time...).");
         ImGui.TextColored(Muted, "Make a variant (on any built-in event): your own version of it that plays when extra conditions are true.");
         ImGui.Spacing();
-        ImGui.TextColored(Muted, "Lines on the ALL job play on every job that has no lines of its own for that event.");
+        ImGui.TextColored(Muted, "Lines under \"Every job\" play on any job that has no lines of its own for that event.");
         ImGui.PopTextWrapPos();
     }
 
@@ -427,7 +427,7 @@ public sealed partial class ConfigWindow
                     "without its own lines plays Any city; Home plays House/Apartment if it has none. Homes: Settings.",
         "State" => "Plays when you (or a friend near you) start doing something, outside duties and combat. Friends' " +
                    "diving, flying and fishing can't be seen, so those only play for you.",
-        "Time" => "Eorzea time: Dawn 5:00, Morning 7:00, Day 12:00, Dusk 17:00, Evening 19:00, Night 22:00. One voice " +
+        "Time of day" => "Eorzea time: Dawn 5:00, Morning 7:00, Day 12:00, Dusk 17:00, Evening 19:00, Night 22:00. One voice " +
                   "in the party comments; not in duties or combat. 30-minute cooldown.",
         _ => null,
     };

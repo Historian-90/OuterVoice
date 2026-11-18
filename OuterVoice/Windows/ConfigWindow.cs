@@ -121,135 +121,189 @@ public sealed partial class ConfigWindow : Window
         }
     }
 
-    private void DrawSettingsBody(Configuration cfg)
+    /// <summary>A collapsible group on the Settings page (open by default, remembered while the window is open).</summary>
+    private static bool Group(string title, bool openByDefault = true)
     {
-
-        Section("Audio");
-        var volume = cfg.Volume;
-        if (ImGui.SliderInt("Volume", ref volume, 0, 100, "%d%%"))
-        {
-            cfg.Volume = volume;
-            cfg.Save();
-        }
-
-        var packCd = plugin.Speaker.Pack?.GlobalCooldownSeconds ?? 20;
-        var cd = cfg.GlobalCooldownOverride >= 0 ? cfg.GlobalCooldownOverride : packCd;
-        if (ImGui.SliderInt("Gap between lines", ref cd, 0, 120, "%d sec"))
-        {
-            cfg.GlobalCooldownOverride = cd;
-            cfg.Save();
-        }
-        HelpMarker("Minimum time between any two lines. Urgent events (deaths, wipes) can still cut in.");
-
-        var lips = cfg.LipSync;
-        if (ImGui.Checkbox("Move the speaker's mouth while they talk", ref lips))
-        {
-            cfg.LipSync = lips;
-            if (!lips) plugin.Lips.Stop();
-            cfg.Save();
-        }
-        HelpMarker("Uses the game's own talking-mouth animation (like NPCs in dialogue). Only on your screen; friends with your pack see it on theirs.");
-
-        var follow = cfg.FollowGameVolume;
-        if (ImGui.Checkbox("Follow the game's Master and Voice volume", ref follow))
-        {
-            cfg.FollowGameVolume = follow;
-            cfg.Save();
-        }
-        HelpMarker("Voices get quieter with the game's Master and Voice sliders, and go silent when either is muted.");
-
-        Section("Idle");
-        var freq = (int)cfg.IdleFrequency;
-        ImGui.SetNextItemWidth(160);
-        if (ImGui.Combo("How often idle lines play", ref freq, "Off\0Rare (about every 30 min)\0Normal (about every 15 min)\0Frequent (about every 7 min)\0"))
-        {
-            cfg.IdleFrequency = (IdleFrequency)freq;
-            cfg.Save();
-        }
-        HelpMarker("Random chatter while you stand around: the timing varies, and it only starts after " +
-                   "you've stood still for a while (no moving, combat, duties, crafting or gathering). Each idle line also has its own cooldown.");
-
-        if (cfg.IdleFrequency != IdleFrequency.Off)
-        {
-            var mins = cfg.IdleMinutes;
-            ImGui.SetNextItemWidth(160);
-            if (ImGui.SliderInt("Stand still for", ref mins, 2, 30, "%d min"))
-            {
-                cfg.IdleMinutes = mins;
-                cfg.Save();
-            }
-            HelpMarker("How long you must stand still before idle lines can play. Moving, fighting, a duty, crafting or gathering starts the wait over.");
-        }
-
-        DrawHomes(cfg);
-
-        Section("Text");
-        var textMode = (int)cfg.TextOutput;
-        if (ImGui.Combo("Show text as", ref textMode, "Nothing\0Chat (only you see it)\0Toast\0Battle-talk pop-up\0"))
-        {
-            cfg.TextOutput = (TextOutput)textMode;
-            cfg.Save();
-        }
-
-        if (cfg.TextOutput == TextOutput.BattleTalk)
-        {
-            var secs = cfg.BattleTalkSeconds;
-            if (ImGui.SliderFloat("Pop-up duration", ref secs, 1f, 10f, "%.1f sec"))
-            {
-                cfg.BattleTalkSeconds = secs;
-                cfg.Save();
-            }
-
-            var icon = (int)cfg.PortraitIconId;
-            if (ImGui.InputInt("Portrait icon ID", ref icon))
-            {
-                cfg.PortraitIconId = (uint)Math.Max(0, icon);
-                cfg.Save();
-            }
-            HelpMarker("0 = no portrait. A custom portrait needs a Penumbra mod that replaces an icon's image.");
-        }
-
-        if (cfg.TextOutput is TextOutput.Chat or TextOutput.BattleTalk)
-        {
-            var speakerName = cfg.SpeakerName;
-            if (ImGui.InputTextWithHint("Speaker name", plugin.Speaker.DisplayName(), ref speakerName, 64))
-            {
-                cfg.SpeakerName = speakerName;
-                cfg.Save();
-            }
-            HelpMarker("Leave blank to use the voice pack character's first name.");
-        }
-
-        var textOnly = cfg.TextWithoutAudio;
-        if (ImGui.Checkbox("Show text for lines that aren't recorded yet", ref textOnly))
-        {
-            cfg.TextWithoutAudio = textOnly;
-            cfg.Save();
-        }
-
-        Section("Jobs");
-        var shared = cfg.SharedLinesOnOtherJobs;
-        if (ImGui.Checkbox("Use shared lines on jobs without their own", ref shared))
-        {
-            cfg.SharedLinesOnOtherJobs = shared;
-            cfg.Save();
-        }
-        HelpMarker("Lines in the pack's ALL group work on any job. With this off, only jobs that have their own lines speak.");
-
         ImGui.Spacing();
-        if (ImGui.Button("Preview text"))
-            plugin.Speaker.ShowText(plugin.Speaker.DisplayName(), "This is how your lines will look.");
-
-        Section("Testing");
-        if (ImGui.CollapsingHeader("Play any event"))
-        {
-            ImGui.Indent();
-            DrawTest();
-            ImGui.Unindent();
-        }
+        ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(Accent.X, Accent.Y, Accent.Z, 0.35f));
+        var open = ImGui.CollapsingHeader(title, openByDefault ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None);
+        ImGui.PopStyleColor();
+        return open;
     }
 
-    // ---- Test tab ------------------------------------------------------------
+    private void DrawSettingsBody(Configuration cfg)
+    {
+        if (Group("Playback"))
+        {
+            var volume = cfg.Volume;
+            ImGui.SetNextItemWidth(220);
+            if (ImGui.SliderInt("Volume", ref volume, 0, 100, "%d%%"))
+            {
+                cfg.Volume = volume;
+                cfg.Save();
+            }
+
+            var follow = cfg.FollowGameVolume;
+            if (ImGui.Checkbox("Follow the game's Master and Voice volume", ref follow))
+            {
+                cfg.FollowGameVolume = follow;
+                cfg.Save();
+            }
+            HelpMarker("Voices get quieter with the game's Master and Voice sliders, and go silent when either is muted.");
+
+            var packCd = plugin.Speaker.Pack?.GlobalCooldownSeconds ?? 20;
+            var cd = cfg.GlobalCooldownOverride >= 0 ? cfg.GlobalCooldownOverride : packCd;
+            ImGui.SetNextItemWidth(220);
+            if (ImGui.SliderInt("Gap between lines", ref cd, 0, 120, "%d sec"))
+            {
+                cfg.GlobalCooldownOverride = cd;
+                cfg.Save();
+            }
+            HelpMarker("Minimum time between any two lines. Urgent events (deaths, wipes) can still cut in.");
+
+            var lips = cfg.LipSync;
+            if (ImGui.Checkbox("Move the speaker's mouth while they talk", ref lips))
+            {
+                cfg.LipSync = lips;
+                if (!lips) plugin.Lips.Stop();
+                cfg.Save();
+            }
+            HelpMarker("Uses the game's own talking-mouth animation (like NPCs in dialogue). Only on your screen; friends with your pack see it on theirs.");
+        }
+
+        if (Group("Chatter"))
+            DrawChatter(cfg);
+
+        if (Group("Text pop-ups"))
+        {
+            var textMode = (int)cfg.TextOutput;
+            ImGui.SetNextItemWidth(220);
+            if (ImGui.Combo("Show text as", ref textMode, "Nothing\0Chat (only you see it)\0Toast\0Battle-talk pop-up\0"))
+            {
+                cfg.TextOutput = (TextOutput)textMode;
+                cfg.Save();
+            }
+
+            if (cfg.TextOutput == TextOutput.BattleTalk)
+            {
+                var secs = cfg.BattleTalkSeconds;
+                ImGui.SetNextItemWidth(220);
+                if (ImGui.SliderFloat("Pop-up duration", ref secs, 1f, 10f, "%.1f sec"))
+                {
+                    cfg.BattleTalkSeconds = secs;
+                    cfg.Save();
+                }
+
+                var icon = (int)cfg.PortraitIconId;
+                ImGui.SetNextItemWidth(220);
+                if (ImGui.InputInt("Portrait icon ID", ref icon))
+                {
+                    cfg.PortraitIconId = (uint)Math.Max(0, icon);
+                    cfg.Save();
+                }
+                HelpMarker("0 = no portrait. A custom portrait needs a Penumbra mod that replaces an icon's image.");
+            }
+
+            if (cfg.TextOutput is TextOutput.Chat or TextOutput.BattleTalk)
+            {
+                var speakerName = cfg.SpeakerName;
+                ImGui.SetNextItemWidth(220);
+                if (ImGui.InputTextWithHint("Speaker name", plugin.Speaker.DisplayName(), ref speakerName, 64))
+                {
+                    cfg.SpeakerName = speakerName;
+                    cfg.Save();
+                }
+                HelpMarker("Leave blank to use the voice pack character's first name.");
+            }
+
+            var textOnly = cfg.TextWithoutAudio;
+            if (ImGui.Checkbox("Show text for lines that aren't recorded yet", ref textOnly))
+            {
+                cfg.TextWithoutAudio = textOnly;
+                cfg.Save();
+            }
+
+            if (ImGui.Button("Preview text"))
+                plugin.Speaker.ShowText(plugin.Speaker.DisplayName(), "This is how your lines will look.");
+        }
+
+        if (Group("Homes"))
+            DrawHomes(cfg);
+
+        if (Group("Jobs"))
+        {
+            var shared = cfg.SharedLinesOnOtherJobs;
+            if (ImGui.Checkbox("Use Every job lines on jobs without their own", ref shared))
+            {
+                cfg.SharedLinesOnOtherJobs = shared;
+                cfg.Save();
+            }
+            HelpMarker("Lines written under \"Every job\" work on any job. With this off, only jobs that have their own lines speak.");
+        }
+
+        if (Group("Testing", openByDefault: false))
+            DrawTest();
+    }
+
+    /// <summary>Settings > Chatter: each kind of event on/off, and how often.</summary>
+    private void DrawChatter(Configuration cfg)
+    {
+        ImGui.PushTextWrapPos();
+        ImGui.TextColored(Muted, "How talkative each kind of event is, for every voice you hear (yours and friends'). " +
+                                 "Less = three times as long between lines, More = half as long.");
+        ImGui.PopTextWrapPos();
+
+        if (!ImGui.BeginTable("##chatter", 2, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit)) return;
+        ImGui.TableSetupColumn("Kind", ImGuiTableColumnFlags.WidthFixed, 170);
+        ImGui.TableSetupColumn("How often", ImGuiTableColumnFlags.WidthStretch);
+
+        var rows = KnownEvents.CommonCategories.Concat([KnownEvents.JobAbilities, KnownEvents.YourEvents]);
+        foreach (var category in rows)
+        {
+            ImGui.PushID(category);
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted(category);
+            ImGui.TableNextColumn();
+            ImGui.SetNextItemWidth(220);
+
+            if (category == "Idle")
+            {
+                var freq = (int)cfg.IdleFrequency;
+                if (ImGui.Combo("##idle", ref freq, "Off\0Rare (about every 30 min)\0Normal (about every 15 min)\0Frequent (about every 7 min)\0"))
+                {
+                    cfg.IdleFrequency = (IdleFrequency)freq;
+                    cfg.Save();
+                }
+                if (cfg.IdleFrequency != IdleFrequency.Off)
+                {
+                    ImGui.SameLine();
+                    var mins = cfg.IdleMinutes;
+                    ImGui.SetNextItemWidth(140);
+                    if (ImGui.SliderInt("##idlemins", ref mins, 2, 30, "after %d min still"))
+                    {
+                        cfg.IdleMinutes = mins;
+                        cfg.Save();
+                    }
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("How long you must stand still before idle lines can play.\nMoving, fighting, a duty, crafting or gathering starts the wait over.");
+                }
+            }
+            else
+            {
+                var level = (int)cfg.ChatterFor(category);
+                if (ImGui.Combo("##level", ref level, "Off\0Less\0Normal\0More\0"))
+                {
+                    if ((Chattiness)level == Chattiness.Normal) cfg.Chatter.Remove(category);
+                    else cfg.Chatter[category] = (Chattiness)level;
+                    cfg.Save();
+                }
+            }
+            ImGui.PopID();
+        }
+        ImGui.EndTable();
+    }
 
     /// <summary>Settings > Testing: play any event that has lines, for any job.</summary>
     private void DrawTest()
@@ -318,7 +372,6 @@ public sealed partial class ConfigWindow : Window
     /// <summary>Settings > Homes: register houses/apartments for Home lines and Place conditions.</summary>
     private void DrawHomes(Configuration cfg)
     {
-        Section("Homes");
         ImGui.PushTextWrapPos();
         ImGui.TextColored(Muted, "Your own house, FC house, private chambers and apartment count as home automatically. " +
                                  "Register any other place here (say, your partner's house) to make it home too, or to " +

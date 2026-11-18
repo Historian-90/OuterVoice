@@ -34,7 +34,7 @@ character, sharing), **Friends** (friends' packs) and **Settings**.
 3. Click **Save** at the top when you're done.
 4. **Play** (top right of an event) plays one of its lines. Settings > Testing plays any event.
 
-Lines in the **ALL** group play on any job. Each line has a weight (how often it's picked) and
+Lines under **Every job** play on any job. Each line has a weight (how often it's picked) and
 a mood note for whoever records it.
 
 ## Share with friends
@@ -145,7 +145,7 @@ Performing, or draw your weapon outside combat. Nothing plays in duties or comba
 already going on after a loading screen. Friends' Diving, Flying and Fishing can't be seen from your
 game, so those only play for you.
 
-**Time** (general events)
+**Time of day** (general events)
 
 Eorzea time moves into a new part of the day: Dawn (5:00), Morning (7:00), Day (12:00), Dusk (17:00),
 Evening (19:00), Night (22:00). One voice in the party comments, not in duties or combat. A new period
@@ -176,7 +176,7 @@ party comments.
 
 Random chatter while you're standing around. It only starts after you've stood still for a while:
 moving, fighting, a duty, crafting or gathering starts the wait over (turning on the spot and emotes
-don't). On the Settings page, choose how often (Off, Rare, Normal, Frequent) and how long you must
+don't). Under Settings > Chatter, choose how often (Off, Rare, Normal, Frequent) and how long you must
 stand still first (default 5 minutes).
 Friends who are idle too hear the same line from the same one voice.
 
@@ -194,7 +194,7 @@ Friends who are idle too hear the same line from the same one voice.
 | RPR | Burst (Arcane Circle), Enshroud |
 | MNK, DRG, NIN, SAM, VPR, MCH, BLM, SMN, RDM, PCT | Burst window (each job's own big buff) |
 
-Job abilities live on each job's page, not on ALL. The Lines page only shows the events that apply to the job you're editing; hover the (i) next to an
+Job abilities live on each job's page, not on Every job. The Lines page only shows the events that apply to the job you're editing; hover the (i) next to an
 event to see exactly which buffs trigger it. For **Kardia** and **Dance partner**, tick a line's
 **Initial** box to make it play when you first choose a partner; unticked lines play when you switch. A stance or buff that's
 already on when you zone in doesn't trigger a line.
@@ -213,14 +213,14 @@ its conditions ready to fill in (**Edit trigger** opens them again later). Your 
 - **Doing emote**: e.g. `wave` or `/wave`
 - **Has Moodle**: a custom status from the Moodles plugin (needs Moodles; friends' Moodles count
   when they're synced to you)
-- **Opens coffer**: you just opened a coffer (any, regular, or treasure map)
-- **Weather is**: the current weather is of a kind (Rain, Snow, Fog...)
-- **Idle for**: you've been standing still (out of combat and duties) for at least N minutes
-- **Joins a party**: you just joined someone's party
+- **Treasure coffer**: you just opened a coffer (any, regular, or treasure map)
+- **Weather**: the current weather is of a kind (Rain, Snow, Fog...)
+- **Idle**: you've been standing still (out of combat and duties) for at least N minutes
+- **Joining a party**: you just joined someone's party
 - **Time of day**: Eorzea time is in any of the periods you tick (Dawn, Morning, Day, Dusk, Evening, Night)
 - **Place**: you're in any of the places you tick (City or a specific city, Field, Inn, Residential
   area, Home, House, Apartment, Gold Saucer, Island Sanctuary, Duty, or a registered place)
-- **Doing**: you're doing any of the things you tick (Swimming, Diving, Mounted, Flying, Crafting,
+- **State**: you're doing any of the things you tick (Swimming, Diving, Mounted, Flying, Crafting,
   Gathering, Fishing, Performing, Weapon drawn, In combat). For friends' packs, Diving, Flying and
   Fishing can't be seen.
 - **Built-in event**: makes it a *variant* (below)
@@ -237,12 +237,12 @@ original ("Variant of: Wipe"), and the original lists its variants.
 When a custom event and a built-in event fire for the same moment (a custom "Panhaimatinon" event
 and Sage's Big heal line, say), the custom line wins.
 
-A custom event built on **Opens coffer** or **Joins a party** plays *instead of* the built-in
-coffer or party line, so e.g. "Opens coffer + Has Moodle *Greedy*" can replace the usual line when
+A custom event built on **Treasure coffer** or **Joining a party** plays *instead of* the built-in
+coffer or party line, so e.g. "Treasure coffer + Has Moodle *Greedy*" can replace the usual line when
 that Moodle is on. Weather and idle conditions fire when they become true (not when you zone into
 weather that's already there).
 
-Lines for your events are written right under them (the ALL group works for every job). Your
+Lines for your events are written right under them (lines under Every job work on any job). Your
 events are saved in your voice pack, so friends who import it hear them too. Give them a
 **Category** (Emotes, RP, Moodles...) to group them, and switch them **On/Off** without deleting
 them.
@@ -256,6 +256,14 @@ Click an event to edit it on the right.
 
 **+ Add event** is a searchable list of every event for the job, by category, with what triggers
 each one; picking one opens it with a first line ready. Tick **Show all events** to list everything.
+
+## Chatter
+
+**Settings > Chatter** sets how talkative each kind of event is, for every voice you hear (yours and
+friends'): Combat & duties, Social, Treasure, Places, State, Time of day, Weather, Job abilities and
+Your events can each be **Off**, **Less** (three times as long between lines), **Normal** or **More**
+(half as long). Idle has its own setting there: how often (Off, Rare, Normal, Frequent) and how long
+you must stand still first. Variants follow the event they're based on.
 
 ## Commands
 

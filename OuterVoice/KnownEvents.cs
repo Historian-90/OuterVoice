@@ -79,12 +79,12 @@ public static class KnownEvents
         new("state_weapon", "Weapon drawn", 1, 600, "You draw your weapon outside combat.", "State"),
 
         // General events: time of day (Eorzea time)
-        new("time_dawn", "Dawn", 1, 1800, "Eorzea time reaches dawn (5:00).", "Time"),
-        new("time_morning", "Morning", 1, 1800, "Eorzea time reaches morning (7:00).", "Time"),
-        new("time_day", "Day", 1, 1800, "Eorzea time reaches midday (12:00).", "Time"),
-        new("time_dusk", "Dusk", 1, 1800, "Eorzea time reaches dusk (17:00).", "Time"),
-        new("time_evening", "Evening", 1, 1800, "Eorzea time reaches evening (19:00).", "Time"),
-        new("time_night", "Night", 1, 1800, "Eorzea time reaches night (22:00).", "Time"),
+        new("time_dawn", "Dawn", 1, 1800, "Eorzea time reaches dawn (5:00).", "Time of day"),
+        new("time_morning", "Morning", 1, 1800, "Eorzea time reaches morning (7:00).", "Time of day"),
+        new("time_day", "Day", 1, 1800, "Eorzea time reaches midday (12:00).", "Time of day"),
+        new("time_dusk", "Dusk", 1, 1800, "Eorzea time reaches dusk (17:00).", "Time of day"),
+        new("time_evening", "Evening", 1, 1800, "Eorzea time reaches evening (19:00).", "Time of day"),
+        new("time_night", "Night", 1, 1800, "Eorzea time reaches night (22:00).", "Time of day"),
 
         // General events: treasure
         new("chest_open", "Treasure coffer", 2, 20, "You open a treasure coffer (dungeons, raids, and anywhere else). Coffers other people open don't count.", "Treasure"),
@@ -118,8 +118,24 @@ public static class KnownEvents
         new("enshroud", "Enshroud", 1, 90, "You enter Enshroud."),
     ];
 
+    /// <summary>The Chatter row an event belongs to: its category, "Job abilities", or "Your events".</summary>
+    public static string ChatterCategory(VoicePack pack, string eventName)
+    {
+        if (pack.CustomEvents.FirstOrDefault(c => c.Id == eventName) is { } custom)
+        {
+            if (custom.VariantOf is not { } baseEvent) return YourEvents;
+            eventName = baseEvent; // a variant follows the event it's a variant of
+        }
+        var info = Get(eventName);
+        if (info == null) return YourEvents;
+        return info.Jobs != null ? JobAbilities : info.Category ?? CommonCategories[0];
+    }
+
+    public const string JobAbilities = "Job abilities";
+    public const string YourEvents = "Your events";
+
     /// <summary>Subsections of GENERAL EVENTS, in display order.</summary>
-    public static readonly string[] CommonCategories = ["Combat & duties", "Social", "Treasure", "Places", "State", "Time", "Weather", "Idle"];
+    public static readonly string[] CommonCategories = ["Combat & duties", "Social", "Treasure", "Places", "State", "Time of day", "Weather", "Idle"];
 
     /// <summary>
     /// The weather event for a weather name from the game's Weather sheet. Anything not listed

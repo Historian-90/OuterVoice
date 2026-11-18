@@ -9,8 +9,8 @@ namespace OuterVoice.Windows;
 public sealed partial class ConfigWindow
 {
     private static readonly string[] ConditionLabels =
-        ["Casting", "Has status", "Doing emote", "Has Moodle", "Opens coffer", "Weather is", "Idle for", "Joins a party",
-         "Time of day", "Place", "Doing", "Built-in event"];
+        ["Casting", "Has status", "Doing emote", "Has Moodle", "Treasure coffer", "Weather", "Idle", "Joining a party",
+         "Time of day", "Place", "State", "Built-in event"];
 
     private static readonly string[] ScopeLabels = ["Player (You)", "Target"];
 
@@ -227,9 +227,9 @@ public sealed partial class ConfigWindow
                    "Doing emote: the emote you're currently performing.\n" +
                    "Has Moodle: a custom status from the Moodles plugin (needs Moodles installed;\n" +
                    "  friends' Moodles only show up if they're synced to you).\n" +
-                   "Opens coffer / Joins a party: it just happened (within a few seconds).\n" +
-                   "Weather is / Time of day / Place / Doing: true for as long as it lasts.\n" +
-                   "Idle for: standing still that long, out of combat and duties.\n" +
+                   "Treasure coffer / Joining a party: it just happened (within a few seconds).\n" +
+                   "Weather / Time of day / Place / State: true for as long as it lasts.\n" +
+                   "Idle: standing still that long, out of combat and duties.\n" +
                    "Built-in event: makes this a variant of that event (plays instead of it).\n\n" +
                    "Names must match what the game (or Moodles) shows; capitals don't matter.");
 
