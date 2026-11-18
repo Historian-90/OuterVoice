@@ -45,8 +45,8 @@ own pop-up, like an NPC's. **Size**, **Left / right** and **Top / bottom** frame
 shows a preview pop-up). A PNG with a transparent background looks most like the game's NPC
 portraits. The picture and its framing travel with your pack, so friends see it in their pop-ups.
 
-**Settings > Text pop-ups > Box style** picks between the game's pop-up looks by number (0 is the
-usual one); changing it shows a preview.
+**Settings > Text pop-ups > Box style** picks the pop-up's look: **Parchment** (the usual one),
+**Frosted**, **Shadow** (see-through black) or **Classic blue**. Picking one shows a preview.
 
 This needs **Penumbra**: Outer Voice asks Penumbra to show your picture in place of a spare game
 icon while the plugin is running (nothing is installed, and it's gone when the plugin unloads).

@@ -29,6 +29,9 @@ public sealed partial class ConfigWindow : Window
 
     private enum Page { Lines, Pack, Friends, Settings }
 
+    private static readonly string[] BoxStyleNames = ["Parchment", "Frosted", "Shadow", "Classic blue"];
+    private static readonly int[] BoxStyleNumbers = [0, 6, 7, 9];
+
     private Page page = Page.Lines;
     private const float RailWidth = 46f;
     private static readonly Vector4 Accent = new(0.55f, 0.42f, 0.85f, 1f);
@@ -186,17 +189,16 @@ public sealed partial class ConfigWindow : Window
 
             if (cfg.TextOutput == TextOutput.BattleTalk)
             {
-                var style = cfg.BattleTalkStyle;
+                // The game's distinct pop-up looks (its other style numbers repeat the parchment one).
+                var styleIndex = Math.Max(0, Array.IndexOf(BoxStyleNumbers, cfg.BattleTalkStyle));
                 ImGui.SetNextItemWidth(220);
-                if (ImGui.SliderInt("Box style", ref style, 0, 9))
+                if (ImGui.Combo("Box style", ref styleIndex, BoxStyleNames, BoxStyleNames.Length))
                 {
-                    cfg.BattleTalkStyle = style;
+                    cfg.BattleTalkStyle = BoxStyleNumbers[styleIndex];
                     cfg.Save();
+                    plugin.Speaker.ShowText(plugin.Speaker.DisplayName(), $"This is the {BoxStyleNames[styleIndex]} box.");
                 }
-                if (ImGui.IsItemDeactivatedAfterEdit())
-                    plugin.Speaker.ShowText(plugin.Speaker.DisplayName(), $"This is box style {style}.");
-                HelpMarker("The game has a few pop-up looks, picked by number (0 = the usual one).\n" +
-                           "Changing it shows a preview. Some numbers may look the same.");
+                HelpMarker("Picking a style shows a preview pop-up.");
 
                 var secs = cfg.BattleTalkSeconds;
                 ImGui.SetNextItemWidth(220);
