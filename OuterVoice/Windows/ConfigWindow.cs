@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
 
 namespace OuterVoice.Windows;
@@ -20,51 +22,59 @@ public sealed partial class ConfigWindow : Window
     {
         this.plugin = plugin;
         folderInput = plugin.Configuration.PackFolder;
-        SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(440, 380) };
-        Size = new Vector2(500, 540);
+        SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(680, 420) };
+        Size = new Vector2(920, 620);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
+
+    private enum Page { Lines, Pack, Friends, Settings }
+
+    private Page page = Page.Lines;
+    private const float RailWidth = 46f;
+    private static readonly Vector4 Accent = new(0.55f, 0.42f, 0.85f, 1f);
 
     public override void Draw()
     {
         DrawHeader();
-        ImGui.Spacing();
+        ImGui.Separator();
 
-        if (!ImGui.BeginTabBar("##tabs"))
-            return;
-
-        if (ImGui.BeginTabItem("Settings"))
-        {
-            DrawSettings();
-            ImGui.EndTabItem();
-        }
-
-        if (ImGui.BeginTabItem("Voice Pack"))
-        {
-            DrawPack();
-            ImGui.EndTabItem();
-        }
-
-        if (ImGui.BeginTabItem("Lines", TabFlags("Lines")))
-        {
-            DrawLines();
-            ImGui.EndTabItem();
-        }
-
-        if (ImGui.BeginTabItem("Friends"))
-        {
-            DrawFriends();
-            ImGui.EndTabItem();
-        }
-
-        if (ImGui.BeginTabItem("Test"))
-        {
-            DrawTest();
-            ImGui.EndTabItem();
-        }
-
-        ImGui.EndTabBar();
+        // Jumps requested from elsewhere ("open this event on the Lines page").
+        if (pendingTab == "Lines") page = Page.Lines;
         pendingTab = null;
+
+        ImGui.BeginChild("##rail", new Vector2(RailWidth, 0));
+        RailButton(Page.Lines, FontAwesomeIcon.Comments, "Lines\nWhat your character says, and when.");
+        RailButton(Page.Pack, FontAwesomeIcon.FolderOpen, "Voice Pack\nYour pack's folder and character, exporting and publishing.");
+        RailButton(Page.Friends, FontAwesomeIcon.UserFriends, "Friends\nFriends' voice packs: links, updates, volume.");
+        RailButton(Page.Settings, FontAwesomeIcon.Cog, "Settings\nVolume, pop-ups, chatter, homes, testing.");
+        ImGui.EndChild();
+
+        ImGui.SameLine();
+        ImGui.BeginChild("##page", Vector2.Zero);
+        switch (page)
+        {
+            case Page.Lines: DrawLines(); break;
+            case Page.Pack:
+                ImGui.BeginChild("##packpage", Vector2.Zero);
+                DrawPack();
+                ImGui.EndChild();
+                break;
+            case Page.Friends: DrawFriends(); break;
+            case Page.Settings: DrawSettings(); break;
+        }
+        ImGui.EndChild();
+    }
+
+    private void RailButton(Page target, FontAwesomeIcon icon, string tooltip)
+    {
+        var active = page == target;
+        var size = new Vector2(RailWidth - 8, RailWidth - 8);
+        var clicked = active
+            ? ImGuiComponents.IconButton((int)target, icon, Accent, Accent, Accent, size)
+            : ImGuiComponents.IconButton((int)target, icon, new Vector4(0, 0, 0, 0), null, null, size);
+        if (clicked) page = target;
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip(tooltip);
+        ImGui.Spacing();
     }
 
     // ---- Header: on/off + status at a glance ---------------------------------
@@ -100,6 +110,19 @@ public sealed partial class ConfigWindow : Window
     private void DrawSettings()
     {
         var cfg = plugin.Configuration;
+        ImGui.BeginChild("##settings", Vector2.Zero);
+        try
+        {
+            DrawSettingsBody(cfg);
+        }
+        finally
+        {
+            ImGui.EndChild();
+        }
+    }
+
+    private void DrawSettingsBody(Configuration cfg)
+    {
 
         Section("Audio");
         var volume = cfg.Volume;
@@ -216,10 +239,19 @@ public sealed partial class ConfigWindow : Window
         ImGui.Spacing();
         if (ImGui.Button("Preview text"))
             plugin.Speaker.ShowText(plugin.Speaker.DisplayName(), "This is how your lines will look.");
+
+        Section("Testing");
+        if (ImGui.CollapsingHeader("Play any event"))
+        {
+            ImGui.Indent();
+            DrawTest();
+            ImGui.Unindent();
+        }
     }
 
     // ---- Test tab ------------------------------------------------------------
 
+    /// <summary>Settings > Testing: play any event that has lines, for any job.</summary>
     private void DrawTest()
     {
         var pack = plugin.Speaker.Pack;

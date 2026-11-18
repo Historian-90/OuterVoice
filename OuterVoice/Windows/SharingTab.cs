@@ -144,9 +144,22 @@ public sealed partial class ConfigWindow
 
     // ---- Friends tab ------------------------------------------------------------------------
 
+    /// <summary>The friend shown on the right: a character name, or a pending link ("link:..."), or null.</summary>
+    private string? selectedFriend;
+
     private void DrawFriends()
     {
         var cfg = plugin.Configuration;
+        var friends = plugin.Speaker.Friends.Values.OrderBy(p => p.Character, StringComparer.OrdinalIgnoreCase).ToList();
+        var waiting = cfg.Subscriptions.Where(s => s.Character.Length == 0).ToList();
+
+        // A pending link that just delivered its first pack: follow it to the friend it became.
+        if (selectedFriend != null && selectedFriend.StartsWith("link:", StringComparison.Ordinal) &&
+            cfg.Subscriptions.FirstOrDefault(s => "link:" + s.Link == selectedFriend && s.Character.Length > 0) is { } arrived)
+            selectedFriend = arrived.Character;
+
+        // ---- Left: the list ----
+        ImGui.BeginChild("##friendlist", new Vector2(ListWidth, 0), true);
 
         var hear = cfg.HearFriends;
         if (ImGui.Checkbox("Hear friends' voices", ref hear))
@@ -154,17 +167,145 @@ public sealed partial class ConfigWindow
             cfg.HearFriends = hear;
             cfg.Save();
         }
-        HelpMarker("When a friend whose pack you've imported is in your party, their character speaks too. Only one voice plays at a time.");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("When a friend whose pack you have is in your party, their character speaks too.\nOnly one voice plays at a time.");
+
+        var footer = ImGui.GetFrameHeightWithSpacing() * 2 + ImGui.GetStyle().ItemSpacing.Y;
+        ImGui.BeginChild("##friendrows", new Vector2(0, -footer));
+        if (friends.Count == 0 && waiting.Count == 0)
+        {
+            ImGui.PushTextWrapPos();
+            ImGui.TextColored(Muted, "No friends' packs yet. Click \"+ Add friend\" below.");
+            ImGui.PopTextWrapPos();
+        }
+        if (friends.Count > 0)
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(Accent, "FRIENDS");
+            foreach (var pack in friends)
+            {
+                var sub = SubscriptionFor(pack.Character);
+                FriendRow(pack.Character, pack.Character, cfg.PrefsFor(pack.Character).Muted, sub);
+            }
+        }
+        if (waiting.Count > 0)
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(Accent, "WAITING FOR FIRST DOWNLOAD");
+            foreach (var sub in waiting)
+                FriendRow("link:" + sub.Link, $"{sub.Service} link", false, sub);
+        }
+        ImGui.EndChild();
+
+        ImGui.Separator();
+        var half = (ImGui.GetContentRegionAvail().X - ImGui.GetStyle().ItemSpacing.X) / 2;
+        if (ImGui.Button("+ Add friend", new Vector2(half, 0)))
+            ImGui.OpenPopup("##addfriend");
+        DrawAddFriendPopup();
 
         ImGui.SameLine();
-        if (ImGui.Button("Import a pack..."))
+        var subs = plugin.Subscriptions;
+        if (subs.Remaining > 0)
         {
+            ImGui.BeginDisabled();
+            ImGui.Button($"{subs.RoundTotal - subs.Remaining + 1} of {subs.RoundTotal}{Dots()}", new Vector2(half, 0));
+            ImGui.EndDisabled();
+        }
+        else if (ImGui.Button("Check now", new Vector2(half, 0)))
+        {
+            subs.CheckAllNow();
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Check every friend's link for a newer pack now.");
+
+        var limit = cfg.LimitFriendLoudness;
+        if (ImGui.Checkbox("Tame loud clips", ref limit))
+        {
+            cfg.LimitFriendLoudness = limit;
+            cfg.Save();
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Runs friends' clips through a limiter so nothing is ear-blastingly loud.\nFriends' clips over 30 seconds are always skipped.");
+
+        ImGui.EndChild();
+
+        // ---- Right: the selected friend ----
+        ImGui.SameLine();
+        ImGui.BeginChild("##frienddetail", Vector2.Zero, true);
+        if (subs.ManualResult != null &&
+            (subs.ManualResultIsError || DateTime.UtcNow - subs.ManualResultAt < TimeSpan.FromSeconds(20)))
+            ImGui.TextColored(subs.ManualResultIsError ? Bad : Good, subs.ManualResult);
+        DrawShareStatus();
+
+        if (selectedFriend != null && selectedFriend.StartsWith("link:", StringComparison.Ordinal) &&
+            waiting.FirstOrDefault(s => "link:" + s.Link == selectedFriend) is { } pending)
+            DrawPendingLink(pending);
+        else if (selectedFriend != null && friends.FirstOrDefault(f => f.Character == selectedFriend) is { } friend)
+            DrawFriendDetail(friend);
+        else
+            DrawFriendsWelcome();
+        ImGui.EndChild();
+    }
+
+    private Sync.Subscription? SubscriptionFor(string character) =>
+        plugin.Configuration.Subscriptions.FirstOrDefault(s => string.Equals(s.Character, character, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>One row: name, and a dot for the link's state (green ok, yellow update/busy, red error).</summary>
+    private void FriendRow(string key, string label, bool muted, Sync.Subscription? sub)
+    {
+        if (ImGui.Selectable($"  {label}{(muted ? " (muted)" : "")}##f_{key}", selectedFriend == key))
+            selectedFriend = key;
+
+        var min = ImGui.GetItemRectMin();
+        var max = ImGui.GetItemRectMax();
+        var center = new Vector2(max.X - 9, (min.Y + max.Y) / 2);
+        var color = sub == null ? Muted
+            : sub.StatusIsError ? Bad
+            : sub.Activity != null || sub.UpdateAvailable ? Warn
+            : Good;
+        ImGui.GetWindowDrawList().AddCircleFilled(center, 4f, ImGui.GetColorU32(color));
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(sub == null ? "Imported from a file (no link)" : $"{sub.Service}: {sub.Activity ?? sub.Status}");
+    }
+
+    private void DrawAddFriendPopup()
+    {
+        if (!ImGui.BeginPopup("##addfriend")) return;
+
+        ImGui.TextUnformatted("Paste the link your friend sent you:");
+        ImGui.SetNextItemWidth(360);
+        if (ImGui.IsWindowAppearing()) ImGui.SetKeyboardFocusHere();
+        ImGui.InputTextWithHint("##sublink", "Dropbox or OneDrive link...", ref subscribeLink, 512);
+        ImGui.SameLine();
+        if (ImGui.Button("Subscribe") && subscribeLink.Trim().Length > 0)
+        {
+            try
+            {
+                var sub = plugin.Subscriptions.Add(subscribeLink);
+                selectedFriend = "link:" + sub.Link;
+                subscribeLink = string.Empty;
+                SetStatus("Subscribed. The download starts in a moment.", false);
+                ImGui.CloseCurrentPopup();
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ex.Message, true);
+            }
+        }
+        ImGui.TextColored(Muted, "The pack updates itself when your friend publishes a new version.");
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+        if (ImGui.Button("Import a .zip file instead..."))
+        {
+            ImGui.CloseCurrentPopup();
             plugin.FileDialogs.OpenFileDialog("Import a friend's voice pack", ".zip", (ok, path) =>
             {
                 if (!ok || string.IsNullOrEmpty(path)) return;
                 try
                 {
                     var who = PackSharing.Import(path, plugin.Speaker);
+                    selectedFriend = who;
                     SetStatus($"Imported the voice pack for {who}.", false);
                 }
                 catch (Exception ex)
@@ -174,190 +315,138 @@ public sealed partial class ConfigWindow
                 }
             });
         }
+        ImGui.SameLine();
+        ImGui.TextColored(Muted, "A one-off copy: it won't update by itself.");
+        ImGui.EndPopup();
+    }
 
-        var limit = cfg.LimitFriendLoudness;
-        if (ImGui.Checkbox("Tame loud clips", ref limit))
+    private void DrawFriendsWelcome()
+    {
+        ImGui.PushTextWrapPos();
+        ImGui.TextUnformatted("Friends' voice packs");
+        ImGui.Spacing();
+        ImGui.TextColored(Muted, "When a friend whose pack you have is in your party, their character speaks with their own lines. " +
+                                 "Everything happens on your machine: nothing is sent while you play.");
+        ImGui.Spacing();
+        ImGui.TextColored(Muted, "+ Add friend: paste the Dropbox or OneDrive link your friend shares (it updates by itself), " +
+                                 "or import a .zip they sent you.");
+        ImGui.TextColored(Muted, "Pick a friend on the left for their volume, mute and update settings.");
+        ImGui.Spacing();
+        ImGui.TextColored(Muted, "Links are checked when you log in and every 30 minutes, and only downloaded when they changed. " +
+                                 "Only Dropbox and personal OneDrive links are accepted, and a link can never switch to voicing " +
+                                 "a different character than the one it first delivered.");
+        ImGui.PopTextWrapPos();
+    }
+
+    private void DrawPendingLink(Sync.Subscription sub)
+    {
+        ImGui.SetWindowFontScale(1.3f);
+        ImGui.TextUnformatted($"New {sub.Service} link");
+        ImGui.SetWindowFontScale(1f);
+        ImGui.TextColored(Muted, "Waiting for the first download. The character's name shows once it arrives.");
+        ImGui.Spacing();
+        DrawSubscriptionStatus(sub);
+        ImGui.Spacing();
+        if (ImGui.Button("Remove this link"))
         {
-            cfg.LimitFriendLoudness = limit;
+            plugin.Subscriptions.Remove(sub);
+            selectedFriend = null;
+        }
+    }
+
+    private void DrawFriendDetail(VoicePack pack)
+    {
+        var cfg = plugin.Configuration;
+        var prefs = cfg.PrefsFor(pack.Character);
+
+        ImGui.SetWindowFontScale(1.3f);
+        ImGui.TextUnformatted(pack.Character);
+        ImGui.SetWindowFontScale(1f);
+        var lines = pack.AllLines.Count();
+        var rec = pack.AllLines.Count(l => l.AudioPath != null);
+        ImGui.TextColored(Muted, $"{pack.Name}: {lines} lines, {rec} recorded");
+        var jobs = pack.Jobs.Where(j => j.Value.Count > 0).Select(j => j.Key).OrderBy(j => j).ToList();
+        if (jobs.Count > 0)
+            ImGui.TextColored(Muted, $"Jobs: {string.Join(", ", jobs)}");
+
+        ImGui.Spacing();
+        ImGui.TextColored(Accent, "LISTENING");
+        var muted = prefs.Muted;
+        if (ImGui.Checkbox("Mute this friend", ref muted))
+        {
+            prefs.Muted = muted;
             cfg.Save();
         }
-        HelpMarker("Runs friends' clips through a limiter so nothing is ear-blastingly loud. Friends' clips over 30 seconds are always skipped.");
-
-        // Subscribe to a Dropbox link
-        ImGui.SetNextItemWidth(320);
-        ImGui.InputTextWithHint("##sublink", "Paste a friend's Dropbox or OneDrive link...", ref subscribeLink, 512);
-        ImGui.SameLine();
-        if (ImGui.Button("Subscribe") && subscribeLink.Trim().Length > 0)
+        ImGui.SetNextItemWidth(220);
+        var vol = prefs.Volume;
+        if (ImGui.SliderInt("Volume", ref vol, 0, 100, "%d%%"))
         {
-            try
-            {
-                plugin.Subscriptions.Add(subscribeLink);
-                subscribeLink = string.Empty;
-                SetStatus("Subscribed. Their download status shows in the list below.", false);
-            }
-            catch (Exception ex)
-            {
-                SetStatus(ex.Message, true);
-            }
-        }
-        InfoMarker("Your friend shares their pack's zip from Dropbox or OneDrive (Share -> Copy link) and sends you the link.\n" +
-                   "The plugin checks it when you log in and every 30 minutes, and only downloads when it changed.\n" +
-                   "Only Dropbox and personal OneDrive links are accepted, downloads must be zip packs, and a link\n" +
-                   "can never switch to voicing a different character than the one it first delivered.");
-        ImGui.SameLine();
-        var subs = plugin.Subscriptions;
-        if (subs.Remaining > 0)
-        {
-            ImGui.BeginDisabled();
-            ImGui.SmallButton($"Checking {subs.RoundTotal - subs.Remaining + 1} of {subs.RoundTotal}{Dots()}");
-            ImGui.EndDisabled();
-        }
-        else if (ImGui.SmallButton("Check now"))
-        {
-            subs.CheckAllNow();
-        }
-
-        if (subs.ManualResult != null &&
-            (subs.ManualResultIsError || DateTime.UtcNow - subs.ManualResultAt < TimeSpan.FromSeconds(20)))
-            ImGui.TextColored(subs.ManualResultIsError ? Bad : Good, subs.ManualResult);
-
-        DrawShareStatus();
-
-        var friends = plugin.Speaker.Friends.Values.OrderBy(p => p.Character, StringComparer.OrdinalIgnoreCase).ToList();
-        var waiting = cfg.Subscriptions.Where(s => s.Character.Length == 0).ToList();
-        if (friends.Count == 0 && waiting.Count == 0)
-        {
-            ImGui.Spacing();
-            ImGui.TextColored(Muted, "No friends' packs yet. Subscribe to a friend's Dropbox or OneDrive link, or import a .zip they sent you.");
-            return;
-        }
-
-        // Links that haven't delivered a pack yet
-        foreach (var sub in waiting)
-        {
-            ImGui.PushID(sub.Link);
-            if (sub.Activity is { } activity)
-            {
-                if (sub.Progress >= 0)
-                    ImGui.ProgressBar(sub.Progress, new Vector2(200, 0), activity);
-                else
-                    ImGui.TextColored(Good, $"New link: {activity}{Dots()}");
-            }
-            else
-            {
-                ImGui.TextColored(sub.StatusIsError ? Bad : Muted, $"Pending link: {sub.Status}");
-            }
-            ImGui.SameLine();
-            if (ImGui.SmallButton("Remove"))
-                plugin.Subscriptions.Remove(sub);
-            ImGui.PopID();
+            prefs.Volume = vol;
+            cfg.Save();
         }
 
         ImGui.Spacing();
-        if (!ImGui.BeginTable("friends", 6, ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
-            return;
-
-        ImGui.TableSetupColumn("Character");
-        ImGui.TableSetupColumn("Jobs");
-        ImGui.TableSetupColumn("Updates");
-        ImGui.TableSetupColumn("Mute", ImGuiTableColumnFlags.WidthFixed, 40);
-        ImGui.TableSetupColumn("Volume", ImGuiTableColumnFlags.WidthFixed, 110);
-        ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 60);
-        ImGui.TableHeadersRow();
-
-        string? toRemove = null;
-        foreach (var pack in friends)
+        ImGui.TextColored(Accent, "UPDATES");
+        var sub = SubscriptionFor(pack.Character);
+        if (sub == null)
         {
-            var prefs = cfg.PrefsFor(pack.Character);
-            ImGui.PushID(pack.Character);
-            ImGui.TableNextRow();
-
-            ImGui.TableNextColumn();
-            ImGui.TextUnformatted(pack.Character);
+            ImGui.TextColored(Muted, "Imported from a file, so it doesn't update by itself. Ask your friend for their link.");
+        }
+        else
+        {
+            var auto = sub.AutoUpdate;
+            if (ImGui.Checkbox("Install updates automatically", ref auto))
+            {
+                sub.AutoUpdate = auto;
+                cfg.Save();
+            }
             if (ImGui.IsItemHovered())
-            {
-                var rec = pack.AllLines.Count(l => l.AudioPath != null);
-                ImGui.SetTooltip($"{pack.Name}: {pack.AllLines.Count()} lines, {rec} recorded");
-            }
-
-            ImGui.TableNextColumn();
-            ImGui.TextUnformatted(string.Join(", ", pack.Jobs.Where(j => j.Value.Count > 0).Select(j => j.Key).OrderBy(j => j)));
-
-            ImGui.TableNextColumn();
-            var sub = cfg.Subscriptions.FirstOrDefault(s => string.Equals(s.Character, pack.Character, StringComparison.OrdinalIgnoreCase));
-            if (sub == null)
-            {
-                ImGui.TextColored(Muted, "Imported file");
-            }
-            else
-            {
-                var auto = sub.AutoUpdate;
-                if (ImGui.Checkbox("Auto##auto", ref auto))
-                {
-                    sub.AutoUpdate = auto;
-                    cfg.Save();
-                }
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("On: updates install automatically.\nOff (ask first): you'll see an Update button and choose when.");
-                ImGui.SameLine();
-                if (sub.UpdateAvailable)
-                {
-                    if (ImGui.SmallButton("Update"))
-                        _ = plugin.Subscriptions.ApplyPendingAsync(sub);
-                }
-                else if (sub.Activity is { } activity)
-                {
-                    if (sub.Progress >= 0)
-                        ImGui.ProgressBar(sub.Progress, new Vector2(200, 0), activity);
-                    else
-                        ImGui.TextColored(Good, activity + Dots());
-                }
-                else
-                {
-                    ImGui.TextColored(sub.StatusIsError ? Bad : Muted, $"{sub.Service}: {sub.Status}");
-                    if (ImGui.IsItemHovered() && sub.LastChecked != default)
-                        ImGui.SetTooltip($"Last checked {sub.LastChecked:g}");
-                }
-            }
-
-            ImGui.TableNextColumn();
-            var muted = prefs.Muted;
-            if (ImGui.Checkbox("##mute", ref muted))
-            {
-                prefs.Muted = muted;
-                cfg.Save();
-            }
-
-            ImGui.TableNextColumn();
-            ImGui.SetNextItemWidth(-1);
-            var vol = prefs.Volume;
-            if (ImGui.SliderInt("##vol", ref vol, 0, 100, "%d%%"))
-            {
-                prefs.Volume = vol;
-                cfg.Save();
-            }
-
-            ImGui.TableNextColumn();
-            var ctrl = ImGui.GetIO().KeyCtrl;
-            if (!ctrl) ImGui.BeginDisabled();
-            if (ImGui.SmallButton("Remove"))
-                toRemove = pack.Character;
-            if (!ctrl) ImGui.EndDisabled();
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                ImGui.SetTooltip("Hold Ctrl to remove this pack (and unsubscribe from its link).");
-
-            ImGui.PopID();
+                ImGui.SetTooltip("Off (ask first): new versions wait for you to click Update.");
+            DrawSubscriptionStatus(sub);
         }
 
-        ImGui.EndTable();
-
-        if (toRemove != null)
+        ImGui.Spacing();
+        ImGui.Separator();
+        var ctrl = ImGui.GetIO().KeyCtrl;
+        if (!ctrl) ImGui.BeginDisabled();
+        var remove = ImGui.Button("Remove this friend's pack");
+        if (!ctrl) ImGui.EndDisabled();
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            ImGui.SetTooltip("Hold Ctrl to remove this pack (and unsubscribe from its link).");
+        if (remove)
         {
+            var who = pack.Character;
             plugin.Player.Stop();
-            foreach (var sub in cfg.Subscriptions.Where(s => string.Equals(s.Character, toRemove, StringComparison.OrdinalIgnoreCase)).ToList())
-                plugin.Subscriptions.Remove(sub); // unsubscribing removes the pack too
-            PackSharing.RemoveFriend(plugin.Speaker, toRemove);
-            SetStatus($"Removed {toRemove}'s pack.", false);
+            foreach (var s in cfg.Subscriptions.Where(s => string.Equals(s.Character, who, StringComparison.OrdinalIgnoreCase)).ToList())
+                plugin.Subscriptions.Remove(s); // unsubscribing removes the pack too
+            PackSharing.RemoveFriend(plugin.Speaker, who);
+            selectedFriend = null;
+            SetStatus($"Removed {who}'s pack.", false);
+        }
+    }
+
+    /// <summary>Where a link stands: progress while busy, an Update button, or its last status.</summary>
+    private void DrawSubscriptionStatus(Sync.Subscription sub)
+    {
+        if (sub.UpdateAvailable)
+        {
+            ImGui.TextColored(Warn, "A new version is ready.");
+            ImGui.SameLine();
+            if (ImGui.Button("Update"))
+                _ = plugin.Subscriptions.ApplyPendingAsync(sub);
+        }
+        else if (sub.Activity is { } activity)
+        {
+            if (sub.Progress >= 0)
+                ImGui.ProgressBar(sub.Progress, new Vector2(260, 0), activity);
+            else
+                ImGui.TextColored(Good, activity + Dots());
+        }
+        else
+        {
+            ImGui.TextColored(sub.StatusIsError ? Bad : Muted, $"{sub.Service}: {sub.Status}");
+            if (sub.LastChecked != default)
+                ImGui.TextColored(Muted, $"Last checked {sub.LastChecked:g}");
         }
     }
 

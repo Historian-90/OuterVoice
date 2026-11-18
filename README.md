@@ -18,36 +18,42 @@ Everything runs on your own machine. The plugin only reads what your game alread
 3. Open `/xlplugins`, search for **Outer Voice**, and install it.
 4. Type `/ov` (or `/outervoice`) to open it.
 
+## Finding your way around
+
+The icons on the left switch pages: **Lines** (what your character says), **Voice Pack** (folder,
+character, sharing), **Friends** (friends' packs) and **Settings**.
+
 ## Make your voice pack
 
-1. **Voice Pack** tab: click **Browse...** and pick a folder (an empty one is fine), then
+1. **Voice Pack** page: click **Browse...** and pick a folder (an empty one is fine), then
    **Create a new voice pack here**. Click **Use my character** so friends' plugins know whose
    voice it is.
-2. **Lines** tab: add the jobs you play, then write lines under each event. Click
+2. **Lines** page: pick a job at the top left (**+** adds the jobs you play). Click **+ Add event**,
+   pick an event (a wipe, arriving in Kugane, rain...) and type a line on the right. Click
    **Add audio...** on a line to attach a recording (mp3 or wav); it's copied into your pack folder.
 3. Click **Save** at the top when you're done.
-4. **Test** tab: play any event to hear it.
+4. **Play** (top right of an event) plays one of its lines. Settings > Testing plays any event.
 
 Lines in the **ALL** group play on any job. Each line has a weight (how often it's picked) and
 a mood note for whoever records it.
 
 ## Share with friends
 
-- **Voice Pack** tab → **Export pack for friends...** makes one .zip (clips are compressed for
+- **Voice Pack** page → **Export pack for friends...** makes one .zip (clips are compressed for
   sharing by default). Send it however you like.
-- **Friends** tab → **Import a pack...** to add a friend's .zip. Each friend has their own mute
-  and volume.
+- **Friends** page → **+ Add friend** → **Import a .zip file instead...** to add a friend's .zip.
+  Pick a friend in the list for their mute and volume.
 
 Friends' voices play when they're in your party.
 
 ### Sync through Dropbox or OneDrive (no more passing zips around)
 
-- **Share yours:** Voice Pack tab -> **Share through Dropbox or OneDrive** -> pick a folder inside your
+- **Share yours:** Voice Pack page -> **Share through Dropbox or OneDrive** -> pick a folder inside your
   Dropbox or OneDrive folder. Your pack's zip is kept there and re-published every time you save.
   Share **that file** ("Anyone with the link" can view -> Copy link) and send the link to friends once.
-- **Follow a friend:** Friends tab -> paste their link -> **Subscribe**. The plugin checks it when you
-  log in and every 30 minutes, and downloads only when it changed. Per friend, choose **Auto** updates
-  or ask first (an **Update** button appears).
+- **Follow a friend:** Friends page -> **+ Add friend** -> paste their link -> **Subscribe**. The
+  plugin checks it when you log in and every 30 minutes, and downloads only when it changed. Pick the
+  friend in the list to choose automatic updates or ask first (an **Update** button appears).
 
 Supported links: Dropbox file links, and personal OneDrive file links (1drv.ms / onedrive.live.com).
 
@@ -170,7 +176,7 @@ party comments.
 
 Random chatter while you're standing around. It only starts after you've stood still for a while:
 moving, fighting, a duty, crafting or gathering starts the wait over (turning on the spot and emotes
-don't). On the Settings tab, choose how often (Off, Rare, Normal, Frequent) and how long you must
+don't). On the Settings page, choose how often (Off, Rare, Normal, Frequent) and how long you must
 stand still first (default 5 minutes).
 Friends who are idle too hear the same line from the same one voice.
 
@@ -188,7 +194,7 @@ Friends who are idle too hear the same line from the same one voice.
 | RPR | Burst (Arcane Circle), Enshroud |
 | MNK, DRG, NIN, SAM, VPR, MCH, BLM, SMN, RDM, PCT | Burst window (each job's own big buff) |
 
-Job abilities live on each job's page, not on ALL. The Lines tab only shows the events that apply to the job you're editing; hover the (i) next to an
+Job abilities live on each job's page, not on ALL. The Lines page only shows the events that apply to the job you're editing; hover the (i) next to an
 event to see exactly which buffs trigger it. For **Kardia** and **Dance partner**, tick a line's
 **Initial** box to make it play when you first choose a partner; unticked lines play when you switch. A stance or buff that's
 already on when you zone in doesn't trigger a line.
@@ -197,8 +203,8 @@ Skill names are looked up from the game in English, so this currently assumes an
 
 ## Your own events
 
-Click **+ New event** on the Lines tab to make your own trigger. It appears under **Your events**;
-**Edit trigger** opens its conditions right above its lines. Your event plays a line the moment
+Click **+ New** at the bottom of the Lines page to make your own trigger. It opens on the right with
+its conditions ready to fill in (**Edit trigger** opens them again later). Your event plays a line the moment
 **all** of its conditions are true at the same time. Conditions can be:
 
 - **Casting** an action (anything with a cast bar)
@@ -224,8 +230,9 @@ Click **+ New event** on the Lines tab to make your own trigger. It appears unde
 Open any built-in event and click **Make a variant**. You get your own event that starts from it
 (say, *Wipe*) where you add extra conditions (a Moodle, a place, the time of day...). When the
 built-in event fires and the extra conditions are true, the variant's lines play **instead of** the
-built-in ones. Who speaks, cooldowns and everything else work like the built-in event. Variants are
-grouped under **Your events > Variants**, and the built-in event lists its variants.
+built-in ones. Who speaks, cooldowns and everything else work like the built-in event. The new
+variant opens straight away; it's listed under **Your events: Variants**, links back to the
+original ("Variant of: Wipe"), and the original lists its variants.
 
 When a custom event and a built-in event fire for the same moment (a custom "Panhaimatinon" event
 and Sage's Big heal line, say), the custom line wins.
@@ -242,13 +249,13 @@ them.
 
 ## Staying organized
 
-The Lines tab shows only the events you've written lines for (and your own events). To start on
-another event, click **+ Add lines for...**: a searchable list of every event for the job, by
-category, with what triggers each one. Tick **Show all events** to see everything at once.
+The Lines page lists the events you've written lines for (and your own events) on the left, under
+headings (Combat & duties, Places, Weather, Job abilities, Your events...). The number is how many
+lines it has; a filled dot means they're all recorded, a hollow one means some still need audio.
+Click an event to edit it on the right.
 
-Events are grouped into **General events** (Combat & duties, Social, Treasure, Places, State, Time,
-Weather, Idle), **Job abilities** (on a job's page) and **Your events** (by category). Collapsed
-sections are remembered, and the search box finds events and line text.
+**+ Add event** is a searchable list of every event for the job, by category, with what triggers
+each one; picking one opens it with a first line ready. Tick **Show all events** to list everything.
 
 ## Commands
 
@@ -264,13 +271,13 @@ sections are remembered, and the search box finds events and line text.
 While a line plays, the speaking character's mouth moves using the game's own talking animation
 (the one NPCs use in dialogue). It only affects the mouth, so whatever the body is doing keeps
 going. It's visual and local: friends who have your pack see your character talk on their screen.
-Turn it off on the Settings tab if you prefer.
+Turn it off on the Settings page if you prefer.
 
 ## Volume
 
 Voices play through Windows directly rather than through the game's sound channels. By default
 they follow the game's **Master** and **Voice** volume (and go silent when either is muted); turn
-that off on the Settings tab if you'd rather control them separately. The plugin's own Volume
+that off on the Settings page if you'd rather control them separately. The plugin's own Volume
 slider and per-friend volumes apply on top.
 
 ## Building it yourself
