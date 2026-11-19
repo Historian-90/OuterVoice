@@ -29,6 +29,42 @@ public class Line
     /// </summary>
     public bool Initial { get; set; }
 
+    /// <summary>
+    /// For a line in the Every job group: the jobs it's limited to (say, all healers). Empty = every
+    /// job. Lines for a single job live in that job's own group instead.
+    /// </summary>
+    public List<string> OnlyJobs { get; set; } = new();
+
+    [JsonIgnore]
+    public bool IsLimited => OnlyJobs.Count > 0;
+
+    /// <summary>Whether this line can play on a job.</summary>
+    public bool PlaysOn(string job) =>
+        !string.Equals(Job, VoicePack.SharedJob, StringComparison.OrdinalIgnoreCase)
+            ? string.Equals(Job, job, StringComparison.OrdinalIgnoreCase)
+            : OnlyJobs.Count == 0 || OnlyJobs.Contains(job, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The jobs it plays on, for display: "Every job", "SGE", "Healers", "WHM, SGE"...</summary>
+    [JsonIgnore]
+    public string JobsLabel
+    {
+        get
+        {
+            if (!string.Equals(Job, VoicePack.SharedJob, StringComparison.OrdinalIgnoreCase)) return Job;
+            if (OnlyJobs.Count == 0) return "Every job";
+            var set = OnlyJobs.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var parts = new List<string>();
+            foreach (var (role, jobs) in KnownEvents.Roles)
+                if (jobs.All(set.Contains))
+                {
+                    parts.Add(role);
+                    set.ExceptWith(jobs);
+                }
+            parts.AddRange(KnownEvents.CombatJobs.Where(set.Contains));
+            return string.Join(", ", parts);
+        }
+    }
+
     /// <summary>Job this line belongs to ("SGE", "WHM", ... or "ALL"). Filled in on load.</summary>
     [JsonIgnore] public string Job { get; set; } = string.Empty;
 
@@ -176,7 +212,7 @@ public class VoicePack
         if (Jobs.TryGetValue(job, out var own))
             result.AddRange(own.Where(l => l.Event == eventName));
         if (includeShared && !job.Equals(SharedJob, StringComparison.OrdinalIgnoreCase) && Jobs.TryGetValue(SharedJob, out var shared))
-            result.AddRange(shared.Where(l => l.Event == eventName));
+            result.AddRange(shared.Where(l => l.Event == eventName && l.PlaysOn(job)));
         return result;
     }
 
@@ -278,6 +314,25 @@ public class VoicePack
     /// (the old copy is left alone, so Discard still finds it), and the id changes only if the new job
     /// already has a line with the same id.
     /// </summary>
+    /// <summary>
+    /// Sets the jobs a line plays on: none = every job, one = that job's own group, several = the
+    /// Every job group limited to them.
+    /// </summary>
+    public void SetLineJobs(Line line, IReadOnlyCollection<string> jobs)
+    {
+        var picked = KnownEvents.CombatJobs.Where(j => jobs.Contains(j, StringComparer.OrdinalIgnoreCase)).ToList();
+        if (picked.Count == 1)
+        {
+            MoveLine(line, picked[0]);
+            line.OnlyJobs = new List<string>();
+        }
+        else
+        {
+            MoveLine(line, SharedJob);
+            line.OnlyJobs = picked;
+        }
+    }
+
     public void MoveLine(Line line, string newJob)
     {
         if (string.Equals(line.Job, newJob, StringComparison.OrdinalIgnoreCase)) return;

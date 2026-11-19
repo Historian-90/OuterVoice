@@ -172,4 +172,17 @@ public static class KnownEvents
     ];
 
     public static readonly string[] Moods = ["playful", "serious", "tense"];
+
+    /// <summary>Combat jobs only (no "ALL").</summary>
+    public static IEnumerable<string> CombatJobs => Jobs.Where(j => j != VoicePack.SharedJob);
+
+    /// <summary>Role shortcuts for picking several jobs at once.</summary>
+    public static readonly (string Label, string[] Jobs)[] Roles =
+    [
+        ("Tanks", ["PLD", "WAR", "DRK", "GNB"]),
+        ("Healers", ["WHM", "SCH", "AST", "SGE"]),
+        ("Melee", ["MNK", "DRG", "NIN", "SAM", "RPR", "VPR"]),
+        ("Ranged", ["BRD", "MCH", "DNC"]),
+        ("Casters", ["BLM", "SMN", "RDM", "PCT", "BLU"]),
+    ];
 }

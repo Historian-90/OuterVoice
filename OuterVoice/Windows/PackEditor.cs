@@ -432,14 +432,70 @@ public sealed partial class ConfigWindow
         return specific ? editJob : VoicePack.SharedJob;
     }
 
-    /// <summary>Jobs a line for this event can be on: its jobs for job abilities, else Every job or any job.</summary>
-    private static IEnumerable<string> JobChoices(KnownEvents.Info ev, Line line)
+    /// <summary>
+    /// The jobs box on a line: tick boxes for Every job, roles and single jobs. Job abilities only
+    /// offer the jobs that have them.
+    /// </summary>
+    private void DrawLineJobs(VoicePack pack, Line line, KnownEvents.Info ev)
     {
-        var list = ev.Jobs is { Length: > 0 } jobs
-            ? jobs.ToList()
-            : new[] { VoicePack.SharedJob }.Concat(KnownEvents.Jobs).ToList();
-        if (!list.Contains(line.Job)) list.Insert(0, line.Job); // an older line on an unusual job stays selectable
-        return list;
+        ImGui.SetNextItemWidth(130);
+        if (!ImGui.BeginCombo("##jobs", line.JobsLabel, ImGuiComboFlags.HeightLarge))
+        {
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip($"Plays on: {line.JobsLabel}.\nPick Every job, a role (all healers...), or any mix of jobs.");
+            return;
+        }
+
+        var allowed = ev.Jobs is { Length: > 0 } evJobs ? evJobs.ToList() : KnownEvents.CombatJobs.ToList();
+        var set = !string.Equals(line.Job, VoicePack.SharedJob, StringComparison.OrdinalIgnoreCase)
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) { line.Job }
+            : line.OnlyJobs.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var changed = false;
+
+        if (ev.Jobs == null)
+        {
+            var every = set.Count == 0;
+            if (ImGui.Checkbox("Every job", ref every) && every)
+            {
+                set.Clear();
+                changed = true;
+            }
+            ImGui.Separator();
+        }
+
+        foreach (var (role, jobs) in KnownEvents.Roles)
+        {
+            var roleJobs = jobs.Where(allowed.Contains).ToList();
+            if (roleJobs.Count < 2) continue;
+            var all = roleJobs.All(set.Contains);
+            if (ImGui.Checkbox($"{role}##role", ref all))
+            {
+                if (all) set.UnionWith(roleJobs);
+                else set.ExceptWith(roleJobs);
+                changed = true;
+            }
+        }
+        ImGui.Separator();
+
+        foreach (var job in allowed)
+        {
+            var on = set.Contains(job);
+            if (ImGui.Checkbox($"{job}##job", ref on))
+            {
+                if (on) set.Add(job);
+                else set.Remove(job);
+                changed = true;
+            }
+        }
+        ImGui.EndCombo();
+
+        // A job ability always needs at least one of its jobs.
+        if (changed && (ev.Jobs == null || set.Count > 0))
+        {
+            plugin.Player.Stop();
+            pack.SetLineJobs(line, set);
+            Changed();
+        }
     }
 
     /// <summary>A custom event's trigger at the top of its lines: a summary, or the full editor.</summary>
@@ -480,22 +536,8 @@ public sealed partial class ConfigWindow
         if (string.IsNullOrWhiteSpace(line.Text) && line.AudioPath == null)
             ImGui.TextColored(Warn, "Empty line: it won't play until you write something or add audio.");
 
-        // Which job this line plays on
-        ImGui.SetNextItemWidth(110);
-        if (ImGui.BeginCombo("##job", JobLabel(line.Job)))
-        {
-            foreach (var j in JobChoices(ev, line))
-            {
-                if (ImGui.Selectable(JobLabel(j), string.Equals(j, line.Job, StringComparison.OrdinalIgnoreCase)))
-                {
-                    plugin.Player.Stop();
-                    pack.MoveLine(line, j);
-                    Changed();
-                }
-            }
-            ImGui.EndCombo();
-        }
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Which job this line plays on. Every job: any job.");
+        // Which jobs this line plays on
+        DrawLineJobs(pack, line, ev);
 
         // Weight
         ImGui.SameLine();

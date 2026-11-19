@@ -77,7 +77,7 @@ public sealed partial class ConfigWindow
         {
             AllLines => pack.Jobs.Values.SelectMany(l => l).ToList(),
             VoicePack.SharedJob => Of(VoicePack.SharedJob).ToList(),
-            _ => Of(editJob).Concat(Of(VoicePack.SharedJob)).ToList(),
+            _ => Of(editJob).Concat(Of(VoicePack.SharedJob).Where(l => l.PlaysOn(editJob))).ToList(),
         };
     }
 

@@ -29,8 +29,8 @@ character, sharing), **Friends** (friends' packs) and **Settings**.
    **Create a new voice pack here**. Click **Use my character** so friends' plugins know whose
    voice it is.
 2. **Lines** page: click **+ Add event**, pick an event (a wipe, arriving in Kugane, rain...) and type
-   a line on the right. The box at the start of each line sets which job it plays on (**Every job**
-   = any job). Click **Add audio...** on a line to attach a recording (mp3 or wav); it's copied into
+   a line on the right. The box at the start of each line sets which jobs it plays on: **Every job**,
+   a role (**Tanks**, **Healers**, **Melee**, **Ranged**, **Casters**) or any mix of jobs. Click **Add audio...** on a line to attach a recording (mp3 or wav); it's copied into
    your pack folder.
 3. Click **Save** at the top when you're done.
 4. **Play** (top right of an event) plays one of its lines. Settings > Testing plays any event.
