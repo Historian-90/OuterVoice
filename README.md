@@ -18,6 +18,11 @@ Everything runs on your own machine. The plugin only reads what your game alread
 3. Open `/xlplugins`, search for **Outer Voice**, and install it.
 4. Type `/ov` (or `/outervoice`) to open it.
 
+## What's new
+
+After an update, a **What's new** window lists what changed. Open it any time from
+**Settings > About**. The full list is in [CHANGELOG.md](CHANGELOG.md).
+
 ## Finding your way around
 
 The icons on the left switch pages: **Lines** (what your character says), **Voice Pack** (folder,
@@ -76,9 +81,14 @@ Friends' voices play when they're in your party.
 
 ### Sync through Dropbox or OneDrive (no more passing zips around)
 
-- **Share yours:** Voice Pack page -> **Share through Dropbox or OneDrive** -> pick a folder inside your
-  Dropbox or OneDrive folder. Your pack's zip is kept there and re-published every time you save.
-  Share **that file** ("Anyone with the link" can view -> Copy link) and send the link to friends once.
+This uses the **Dropbox or OneDrive desktop app** on your PC (the folder it keeps in sync, like
+`C:\Users\you\OneDrive`), not the website: the plugin writes your pack into that folder and the app
+uploads it for you.
+
+- **Share yours:** Voice Pack page -> **Share through Dropbox or OneDrive** -> pick a folder inside the
+  Dropbox or OneDrive folder the app syncs. Your pack's zip is kept there and re-published every
+  time you save. Share **that file** (right-click it in File Explorer -> Share, "Anyone with the link"
+  can view -> Copy link) and send the link to friends once.
 - **Follow a friend:** Friends page -> **+ Add friend** -> paste their link -> **Subscribe**. The
   plugin checks it when you log in and every 30 minutes, and downloads only when it changed. Pick the
   friend in the list to choose automatic updates or ask first (an **Update** button appears).
@@ -315,19 +325,3 @@ Voices play through Windows directly rather than through the game's sound channe
 they follow the game's **Master** and **Voice** volume (and go silent when either is muted); turn
 that off on the Settings page if you'd rather control them separately. The plugin's own Volume
 slider and per-friend volumes apply on top.
-
-## Building it yourself
-
-Requires the .NET 10 SDK, and the game must have been run with Dalamud once.
-
-```
-dotnet build
-```
-
-Then add the built `OuterVoice.dll` under **Dev Plugin Locations** in `/xlsettings` → Experimental.
-
-## Releasing (maintainer)
-
-Raise `<Version>` in `OuterVoice/OuterVoice.csproj` (e.g. `0.1.1.0`) and push to `main`.
-GitHub Actions builds the plugin, publishes a release (`v0.1.1`), and updates `repo.json` so
-everyone gets the update. You can also run the **Release** workflow by hand from the Actions tab.

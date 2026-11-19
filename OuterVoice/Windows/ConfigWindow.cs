@@ -248,6 +248,13 @@ public sealed partial class ConfigWindow : Window
         if (Group("Homes"))
             DrawHomes(cfg);
 
+        if (Group("About"))
+        {
+            ImGui.TextUnformatted($"Outer Voice {WhatsNewWindow.Current}");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("What's new")) plugin.WhatsNew.Open();
+        }
+
         if (Group("Testing", openByDefault: false))
         {
             ImGui.PushTextWrapPos();

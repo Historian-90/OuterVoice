@@ -41,6 +41,7 @@ public sealed class Plugin : IDalamudPlugin
     public Sync.SubscriptionManager Subscriptions { get; private set; } = null!;
     public Speaker Speaker { get; }
     public Portraits Portraits { get; }
+    public WhatsNewWindow WhatsNew { get; }
     public string? PackError { get; private set; }
 
     /// <summary>True when the chosen folder has no voice pack yet (offer to create one).</summary>
@@ -80,6 +81,9 @@ public sealed class Plugin : IDalamudPlugin
 
         configWindow = new ConfigWindow(this);
         windowSystem.AddWindow(configWindow);
+        WhatsNew = new WhatsNewWindow(this);
+        windowSystem.AddWindow(WhatsNew);
+        WhatsNew.ShowIfUpdated();
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
         PluginInterface.UiBuilder.Draw += FileDialogs.Draw;
         PluginInterface.UiBuilder.OpenConfigUi += configWindow.Toggle;

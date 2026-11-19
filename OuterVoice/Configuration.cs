@@ -79,6 +79,9 @@ public class Configuration : IPluginConfiguration
     /// <summary>Battle-talk pop-up style number passed to the game (0 = the usual box).</summary>
     public int BattleTalkStyle { get; set; }
 
+    /// <summary>The plugin version whose "What's new" you've seen (shown again after an update).</summary>
+    public string LastSeenVersion { get; set; } = string.Empty;
+
     /// <summary>How chatty each kind of event is (missing = Normal). Idle uses IdleFrequency instead.</summary>
     public Dictionary<string, Chattiness> Chatter { get; set; } = new();
 

@@ -58,9 +58,10 @@ public sealed partial class ConfigWindow
 
         ImGui.PushTextWrapPos();
         ImGui.TextColored(Muted,
-            "Pick a folder inside your Dropbox or OneDrive folder. The plugin keeps your pack's zip there, updated every time " +
-            "you save. Share that zip's link with friends once; they subscribe on their Friends tab and get your " +
-            "updates automatically.");
+            "This uses the Dropbox or OneDrive desktop app on this PC (not the website). Pick a folder inside the " +
+            "Dropbox or OneDrive folder the app syncs, for example C:\\Users\\you\\OneDrive\\OuterVoice. The plugin keeps " +
+            "your pack's zip there, updated every time you save, and the app uploads it for you. Share that zip's " +
+            "link with friends once; they add it on their Friends page and get your updates automatically.");
         ImGui.PopTextWrapPos();
 
         var folder = string.IsNullOrWhiteSpace(cfg.PublishFolder) ? "(no folder chosen)" : cfg.PublishFolder;
@@ -81,7 +82,8 @@ public sealed partial class ConfigWindow
 
         if (!cfg.PublishFolder.Contains("Dropbox", StringComparison.OrdinalIgnoreCase) &&
             !cfg.PublishFolder.Contains("OneDrive", StringComparison.OrdinalIgnoreCase))
-            ImGui.TextColored(Warn, "This folder doesn't look like it's inside Dropbox or OneDrive, so it won't sync for friends.");
+            ImGui.TextColored(Warn, "This folder doesn't look like it's inside your Dropbox or OneDrive folder, so the app " +
+                                    "won't upload it and friends won't get updates.");
 
         var onSave = cfg.PublishOnSave;
         if (ImGui.Checkbox("Publish automatically when I save", ref onSave))
@@ -113,7 +115,8 @@ public sealed partial class ConfigWindow
         {
             ImGui.TextColored(Muted, $"File: {Path.GetFileName(target)}");
             InfoMarker("To share it:\n" +
-                       "1. Find this file in Dropbox or OneDrive (File Explorer right-click works too).\n" +
+                       "1. Find this file in File Explorer (right-click > Share, from the Dropbox or OneDrive app),\n" +
+                       "   or on the Dropbox / OneDrive website once the app has uploaded it.\n" +
                        "   Share the FILE, not the folder.\n" +
                        "2. Share -> \"Anyone with the link\" can view -> Copy link.\n" +
                        "3. Send the link to friends once. The file name never changes, so the link keeps working.\n\n" +

@@ -84,6 +84,19 @@ jobs:
         $json[0].DownloadLinkInstall = $link
         $json[0].DownloadLinkUpdate = $link
         $json[0].DownloadLinkTesting = $link
+        # This version's CHANGELOG.md section shows in Dalamud's plugin installer.
+        $ver = "${{ steps.ver.outputs.tag }}".TrimStart('v')
+        $notes = ""
+        $inSection = $false
+        foreach ($line in Get-Content CHANGELOG.md) {
+          if ($line -match '^## ') { $inSection = ($line -match "^## $([regex]::Escape($ver))(\s|$)"); continue }
+          if ($inSection) { $notes += "$line`n" }
+        }
+        $notes = $notes.Trim()
+        if ($notes) {
+          if ($json[0].PSObject.Properties.Name -contains 'Changelog') { $json[0].Changelog = $notes }
+          else { $json[0] | Add-Member -NotePropertyName Changelog -NotePropertyValue $notes }
+        }
         ConvertTo-Json -InputObject @($json) -Depth 5 | Set-Content repo.json -Encoding utf8
         git config user.name "github-actions"
         git config user.email "github-actions@users.noreply.github.com"

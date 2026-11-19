@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.9.5.0</Version>
+    <Version>0.9.6.0</Version>
     <Author>CJ</Author>
     <Name>Outer Voice</Name>
     <Punchline>Voiced lines for your character, and your friends', when things happen in duties.</Punchline>
@@ -14,5 +14,6 @@ Only one voice plays at a time. Everything runs on your own machine by reading w
 
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1" />
+    <EmbeddedResource Include="..\CHANGELOG.md" LogicalName="CHANGELOG.md" />
   </ItemGroup>
 </Project>
