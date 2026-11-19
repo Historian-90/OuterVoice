@@ -162,7 +162,8 @@ public sealed partial class ConfigWindow
 
         bool Shown(KnownEvents.Info ev)
         {
-            if (ev.Name == selectedEvent) return true;
+            // While searching, only matches show (the open event too, so a search never "finds" it by accident).
+            if (q.Length == 0 && ev.Name == selectedEvent) return true;
             if (q.Length > 0)
                 return ev.Label.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                        ev.Trigger.Contains(q, StringComparison.OrdinalIgnoreCase) ||

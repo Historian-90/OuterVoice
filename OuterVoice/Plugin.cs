@@ -102,6 +102,9 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenMainUi -= configWindow.Toggle;
         windowSystem.RemoveAllWindows();
 
+        // Unsaved edits survive plugin updates and reloads: keep them for next time.
+        if (PackDirty) WriteRecovery();
+
         watcher.Dispose();
         Portraits.Dispose();
         Subscriptions.Dispose();
@@ -125,6 +128,8 @@ public sealed class Plugin : IDalamudPlugin
             Speaker.Pack = VoicePack.Load(Configuration.PackFolder);
             PackError = null;
             TidyLineIds(Speaker.Pack);
+            var recovery = Path.Combine(Speaker.Pack.Folder, RecoveryName);
+            PackRecovery = File.Exists(recovery) ? recovery : null;
         }
         catch (FileNotFoundException)
         {
@@ -193,6 +198,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             Speaker.Pack.Save();
             PackDirty = false;
+            DiscardRecovery();
             if (Configuration.PublishOnSave && !string.IsNullOrWhiteSpace(Configuration.PublishFolder))
                 Publisher.Publish();
             return true;
@@ -203,6 +209,66 @@ public sealed class Plugin : IDalamudPlugin
             Log.Error(ex, "Failed to save voice pack");
             return false;
         }
+    }
+
+    // ---- Unsaved changes safety net ---------------------------------------------------------
+
+    public const string RecoveryName = "voicepack.unsaved.json";
+
+    /// <summary>Unsaved edits kept from an earlier session (plugin update, reload, crash), if any.</summary>
+    public string? PackRecovery { get; private set; }
+
+    private DateTime lastRecoveryWrite;
+
+    /// <summary>Writes the pack's unsaved state next to it (voicepack.unsaved.json).</summary>
+    public void WriteRecovery()
+    {
+        if (Speaker.Pack is not { } pack || pack.Folder.Length == 0) return;
+        try
+        {
+            File.WriteAllText(Path.Combine(pack.Folder, RecoveryName),
+                              Newtonsoft.Json.JsonConvert.SerializeObject(pack, VoicePack.JsonSettings));
+            lastRecoveryWrite = DateTime.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Couldn't keep a copy of unsaved changes");
+        }
+    }
+
+    /// <summary>While there are unsaved changes, keep a copy every 20 seconds (in case the game crashes).</summary>
+    public void KeepRecoveryFresh()
+    {
+        if (PackDirty && DateTime.UtcNow - lastRecoveryWrite > TimeSpan.FromSeconds(20))
+            WriteRecovery();
+    }
+
+    /// <summary>Puts the kept unsaved changes back (the current pack file is backed up first).</summary>
+    public void RestoreRecovery()
+    {
+        if (PackRecovery == null || Speaker.Pack is not { } pack) return;
+        try
+        {
+            var json = Path.Combine(pack.Folder, VoicePack.FileName);
+            if (File.Exists(json)) File.Copy(json, json + ".before-restore", overwrite: true);
+            File.Copy(PackRecovery, json, overwrite: true);
+            File.Delete(PackRecovery);
+            ReloadPack();
+        }
+        catch (Exception ex)
+        {
+            PackError = $"Couldn't restore: {ex.Message}";
+            Log.Error(ex, "Couldn't restore unsaved changes");
+        }
+    }
+
+    public void DiscardRecovery()
+    {
+        if (Speaker.Pack is { } pack)
+        {
+            try { File.Delete(Path.Combine(pack.Folder, RecoveryName)); } catch { /* nothing to remove */ }
+        }
+        PackRecovery = null;
     }
 
     /// <summary>"First Last@World" for the logged-in character.</summary>

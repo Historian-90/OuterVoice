@@ -32,6 +32,7 @@ public sealed partial class ConfigWindow
         if (ImGui.SmallButton("Discard"))
         {
             plugin.Player.Stop();
+            plugin.DiscardRecovery(); // you chose to throw these changes away
             plugin.ReloadPack();
         }
     }

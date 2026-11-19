@@ -32,7 +32,8 @@ character, sharing), **Friends** (friends' packs) and **Settings**.
    a line on the right. The box at the start of each line sets which jobs it plays on: **Every job**,
    a role (**Tanks**, **Healers**, **Melee**, **Ranged**, **Casters**) or any mix of jobs. Click **Add audio...** on a line to attach a recording (mp3 or wav); it's copied into
    your pack folder.
-3. Click **Save** at the top when you're done.
+3. Click **Save** at the top when you're done. If the plugin updates or closes before you save, your
+   changes are kept and the top of the window offers **Restore them** next time.
 4. **Play** (top right of an event) plays one of its lines. Settings > Testing plays any event.
 
 Lines set to **Every job** play on any job. On a job that also has its own lines for an event, both

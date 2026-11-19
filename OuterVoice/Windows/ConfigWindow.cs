@@ -106,6 +106,18 @@ public sealed partial class ConfigWindow : Window
             ImGui.TextColored(Muted, $"  {pack.Name}: no lines for {job}");
 
         DrawSaveBar();
+        plugin.KeepRecoveryFresh();
+
+        if (plugin.PackRecovery != null && !plugin.PackDirty)
+        {
+            ImGui.TextColored(Warn, "Unsaved changes from your last session were kept (the plugin was updated or closed before you saved).");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Restore them")) plugin.RestoreRecovery();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Puts those changes back and saves them. Your current pack file is kept as voicepack.json.before-restore.");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Throw away")) plugin.DiscardRecovery();
+        }
     }
 
     // ---- Settings tab --------------------------------------------------------
