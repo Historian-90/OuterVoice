@@ -3,7 +3,7 @@
     "Author": "CJ",
     "Name": "Outer Voice",
     "InternalName": "OuterVoice",
-    "AssemblyVersion": "0.9.6.0",
+    "AssemblyVersion": "0.9.7.0",
     "Punchline": "Voiced lines for your character, and your friends', when things happen in duties.",
     "Description": "Give your character a voice. Record lines for events like raises, deaths, Kardia swaps, wipes and clears, then share your voice pack with friends: when you're in a party together, each of you hears the other's character speak too.\n\nOnly one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play. Optional: if you subscribe to a friend's Dropbox or OneDrive link, the plugin downloads their pack from that service (and nothing else).",
     "ApplicableVersion": "any",
@@ -17,10 +17,10 @@
     ],
     "DalamudApiLevel": 15,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.6/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.6/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.6/latest.zip",
-    "LastUpdate": 1795054575,
-    "Changelog": "- A \"What's new\" window now opens after an update, listing what changed. Open it again any time\n  from Settings > About.\n- Clearer sharing instructions: Dropbox and OneDrive sharing uses the folder their desktop app syncs\n  on your PC, not the website."
+    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.7/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.7/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.7/latest.zip",
+    "LastUpdate": 1795103484,
+    "Changelog": "- Fixed: arrival lines (Island Sanctuary, cities, homes...) could be lost right after a loading\n  screen, and the plugin then treated later arrivals there as \"same place\" and stayed silent.\n- If another line is playing when you arrive somewhere, the arrival line now waits and plays\n  shortly after instead of being dropped.\n- Talking to an NPC no longer counts as arriving in the zone again.\n- Arrival notes now show in /xllog, including why a line didn't play."
   }
 ]
