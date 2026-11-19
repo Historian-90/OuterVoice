@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Dalamud.Game.Command;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Windowing;
@@ -123,6 +124,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             Speaker.Pack = VoicePack.Load(Configuration.PackFolder);
             PackError = null;
+            TidyLineIds(Speaker.Pack);
         }
         catch (FileNotFoundException)
         {
@@ -135,6 +137,36 @@ public sealed class Plugin : IDalamudPlugin
             Speaker.Pack = null;
             PackError = $"Couldn't read the voice pack: {ex.Message}";
             Log.Error(ex, "Failed to load voice pack");
+        }
+    }
+
+    /// <summary>
+    /// Gives older lines ids that match their event ("start_01" becomes "duty_start_03"), saves the
+    /// pack, then removes the recordings' old copies.
+    /// </summary>
+    private static void TidyLineIds(VoicePack pack)
+    {
+        try
+        {
+            var before = pack.Jobs.Values.SelectMany(l => l).Count(l => !System.Text.RegularExpressions.Regex.IsMatch(
+                l.Id, $"^{System.Text.RegularExpressions.Regex.Escape(l.Event)}_\\d+$"));
+            if (before == 0) return;
+
+            // Keep a copy of the pack file as it was, just in case.
+            var json = Path.Combine(pack.Folder, VoicePack.FileName);
+            if (File.Exists(json)) File.Copy(json, json + ".before-id-tidy", overwrite: true);
+
+            var oldFiles = pack.NormalizeLineIds();
+            pack.Save();
+            foreach (var f in oldFiles)
+            {
+                try { File.Delete(f); } catch { /* an old copy left behind is harmless */ }
+            }
+            Log.Information($"Renamed {before} line id(s) to match their events");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Couldn't tidy line ids");
         }
     }
 

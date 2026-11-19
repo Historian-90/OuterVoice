@@ -278,6 +278,37 @@ public class VoicePack
         return copy;
     }
 
+    /// <summary>
+    /// Renames lines whose id doesn't follow "&lt;event&gt;_NN" (older packs used names like "start_01"
+    /// for duty start). Recordings are copied to the new name; returns the old files that can be
+    /// deleted once the pack is saved.
+    /// </summary>
+    public List<string> NormalizeLineIds()
+    {
+        var oldFiles = new List<string>();
+        foreach (var (job, lines) in Jobs)
+        {
+            foreach (var line in lines)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(line.Id, $"^{System.Text.RegularExpressions.Regex.Escape(line.Event)}_\\d+$"))
+                    continue;
+
+                var oldAudio = line.AudioPath;
+                line.Id = NextLineId(job, line.Event);
+                if (oldAudio != null && File.Exists(oldAudio))
+                {
+                    var name = line.Id + Path.GetExtension(oldAudio).ToLowerInvariant();
+                    var dest = Path.Combine(Path.GetDirectoryName(oldAudio)!, name);
+                    File.Copy(oldAudio, dest, overwrite: true);
+                    line.Audio = name;
+                    if (oldAudio.StartsWith(Folder, StringComparison.OrdinalIgnoreCase)) oldFiles.Add(oldAudio);
+                }
+                line.AudioPath = ResolveAudio(Folder, line);
+            }
+        }
+        return oldFiles;
+    }
+
     /// <summary>A new line id like "raise_04" that isn't used yet in this job.</summary>
     public string NextLineId(string job, string eventName)
     {
