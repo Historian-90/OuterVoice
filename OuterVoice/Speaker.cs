@@ -75,12 +75,19 @@ public sealed class Speaker
     /// </summary>
     /// <param name="initial">For partner events: true = first pick, false = swap, null = any line.</param>
     /// <param name="speakerEntityId">The character speaking, so their mouth can move (0 = none).</param>
+    /// <summary>Why the last Trigger call said nothing (null when it spoke).</summary>
+    public string? LastDrop { get; private set; }
+
     public Line? Trigger(VoicePack pack, string eventName, string job, long seed, bool force = false, bool? initial = null,
                          uint speakerEntityId = 0)
     {
         var cfg = plugin.Configuration;
+        LastDrop = null;
         if (!force && (!cfg.Enabled || EventWatcher.Suppressed))
+        {
+            LastDrop = !cfg.Enabled ? "the plugin is off" : "a cutscene, dialogue or loading screen just ended";
             return null; // off, or a cutscene / dialogue / loading screen: drop it, don't queue it
+        }
 
         var def = pack.GetEvent(eventName);
         var now = DateTime.UtcNow;
@@ -88,7 +95,10 @@ public sealed class Speaker
         // Settings > Chatter: categories can be switched off, or made less / more frequent.
         var chatter = cfg.ChatterFor(KnownEvents.ChatterCategory(pack, eventName));
         if (!force && chatter == Chattiness.Off && KnownEvents.ChatterCategory(pack, eventName) != "Idle")
+        {
+            LastDrop = "that chatter category is off";
             return null;
+        }
         var cooldownSeconds = chatter switch
         {
             Chattiness.Less => def.CooldownSeconds * 3,
@@ -107,11 +117,20 @@ public sealed class Speaker
                                    now - lastStart.At <= CustomOverrideWindow;
             var interrupts = (player.IsPlaying && def.Priority > player.CurrentPriority) || overridesBuiltIn;
             if (player.IsPlaying && !interrupts)
+            {
+                LastDrop = "another line was playing";
                 return null;
+            }
             if (!interrupts && (now - lastAnyLine).TotalSeconds < globalCd)
+            {
+                LastDrop = $"the {globalCd}-second pause between lines";
                 return null;
+            }
             if (lastEventTime.TryGetValue(cooldownKey, out var last) && (now - last).TotalSeconds < cooldownSeconds)
+            {
+                LastDrop = "this event's cooldown";
                 return null;
+            }
         }
 
         var voiceKey = pack.Character;
@@ -141,7 +160,10 @@ public sealed class Speaker
 
         var line = Pick(options, seed);
         if (line == null)
+        {
+            LastDrop = "no line to pick";
             return null;
+        }
 
         if (!force)
         {

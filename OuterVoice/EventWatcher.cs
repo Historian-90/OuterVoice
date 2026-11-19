@@ -196,6 +196,7 @@ public sealed class EventWatcher : IDisposable
         if (me == null || actors.Count == 0)
         {
             ResetTransientState();
+            if (me == null) placeTerritory = 0; // logged out: the next zone is a fresh start
             return;
         }
 
@@ -614,6 +615,10 @@ public sealed class EventWatcher : IDisposable
             friendTerritory[m.EntityId] = t;
         }
 
+        // After a loading screen or NPC talk the speaker stays quiet for a moment; wait it out
+        // instead of spending the arrival on a line that would be dropped.
+        if (Suppressed) return;
+        RetryArrival(now);
         if (arrivalDue is not { } due || now < due) return;
         arrivalDue = null;
 
@@ -668,7 +673,39 @@ public sealed class EventWatcher : IDisposable
         candidates.Sort((x, y) => string.CompareOrdinal(x.Actor.CharacterId, y.Actor.CharacterId));
         var seconds = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.GetServerTime();
         var pick = candidates[(int)(Fnv1a($"arrive|{candidates[0].Event}|{seconds / 10}") % (ulong)candidates.Count)];
-        Say(pick.Actor, pick.Event);
+        pendingArrival = null;
+        if (!Say(pick.Actor, pick.Event))
+        {
+            // Something else was talking (or the pause between lines): keep trying for a little while.
+            pendingArrival = (pick.Actor, pick.Event, now + ArrivalRetryFor, territory);
+            NoteArrival($"{pick.Event} held back ({speaker.LastDrop ?? "unknown reason"}), will retry");
+        }
+    }
+
+    /// <summary>An arrival line that couldn't play yet: who, what, until when, and in which zone.</summary>
+    private (Actor Actor, string Event, DateTime Until, uint Territory)? pendingArrival;
+    private static readonly TimeSpan ArrivalRetryFor = TimeSpan.FromSeconds(30);
+    private DateTime nextArrivalRetry;
+
+    private void RetryArrival(DateTime now)
+    {
+        if (pendingArrival is not { } p || now < nextArrivalRetry) return;
+        nextArrivalRetry = now + TimeSpan.FromSeconds(1);
+        if (p.Territory != Plugin.ClientState.TerritoryType)
+        {
+            pendingArrival = null; // moved on already
+            return;
+        }
+        if (Say(p.Actor, p.Event))
+        {
+            pendingArrival = null;
+            NoteArrival($"{p.Event} played on retry");
+        }
+        else if (now >= p.Until)
+        {
+            pendingArrival = null;
+            NoteArrival($"{p.Event} gave up after {ArrivalRetryFor.TotalSeconds:0} s ({speaker.LastDrop ?? "unknown reason"})");
+        }
     }
 
     private void OpenArrival(DateTime now, uint entityId)
@@ -738,7 +775,7 @@ public sealed class EventWatcher : IDisposable
     private static void NoteArrival(string text)
     {
         LastArrival = $"{DateTime.Now:t}: {text}";
-        Plugin.Log.Information($"Arrival: {text}");
+        Plugin.Log.Warning($"Arrival: {text}"); // warning level so it shows with Dalamud's default log filter
     }
 
     private uint weatherTerritory;
@@ -1130,17 +1167,14 @@ public sealed class EventWatcher : IDisposable
 
     // ---- Who speaks ---------------------------------------------------------------------
 
-    private void Say(Actor actor, string eventName, bool? initial = null)
+    private bool Say(Actor actor, string eventName, bool? initial = null)
     {
         // A variant of this built-in event whose conditions hold plays instead of it.
         if (!eventName.StartsWith("custom_", StringComparison.Ordinal) && FindVariant(actor, eventName) is { } variant)
-        {
-            speaker.Trigger(actor.Pack, variant.Id, actor.Job, Seed(actor.CharacterId, variant.Id),
-                            speakerEntityId: actor.EntityId);
-            return;
-        }
-        speaker.Trigger(actor.Pack, eventName, actor.Job, Seed(actor.CharacterId, eventName), initial: initial,
-                        speakerEntityId: actor.EntityId);
+            return speaker.Trigger(actor.Pack, variant.Id, actor.Job, Seed(actor.CharacterId, variant.Id),
+                                   speakerEntityId: actor.EntityId) != null;
+        return speaker.Trigger(actor.Pack, eventName, actor.Job, Seed(actor.CharacterId, eventName), initial: initial,
+                               speakerEntityId: actor.EntityId) != null;
     }
 
     /// <summary>
@@ -1253,7 +1287,6 @@ public sealed class EventWatcher : IDisposable
         wasBigPull = false;
         bigPullSince = null;
         zoneInCheckAt = null;
-        placeTerritory = 0;
         friendStates.Clear();
         previousStates = null;
         weatherTerritory = 0; // re-record the weather instead of commenting on a change we didn't watch

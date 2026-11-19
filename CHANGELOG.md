@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.7
+- Fixed: arrival lines (Island Sanctuary, cities, homes...) could be lost right after a loading
+  screen, and the plugin then treated later arrivals there as "same place" and stayed silent.
+- If another line is playing when you arrive somewhere, the arrival line now waits and plays
+  shortly after instead of being dropped.
+- Talking to an NPC no longer counts as arriving in the zone again.
+- Arrival notes now show in /xllog, including why a line didn't play.
+
 ## 0.9.6
 - A "What's new" window now opens after an update, listing what changed. Open it again any time
   from Settings > About.
