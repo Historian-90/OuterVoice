@@ -147,7 +147,7 @@ public sealed partial class ConfigWindow
 
             ImGui.EndTable();
         }
-        ImGui.TextColored(Muted, "Add or remove jobs on the Lines page.");
+        ImGui.TextColored(Muted, "Each line's job is set with the job box on the line (Lines page).");
 
         DrawExport(pack);
     }
@@ -269,7 +269,7 @@ public sealed partial class ConfigWindow
                                  "so they never play. Move them to another event to reuse them, or delete them.");
         ImGui.PopTextWrapPos();
 
-        var targets = pack.AllEvents().Where(e => e.AppliesTo(editJob)).ToList();
+        var targets = pack.AllEvents().Where(EventShown).ToList();
         Line? remove = null;
         foreach (var line in unused)
         {
@@ -308,7 +308,7 @@ public sealed partial class ConfigWindow
 
         if (remove != null)
         {
-            jobLines.Remove(remove);
+            if (pack.Jobs.TryGetValue(remove.Job, out var list)) list.Remove(remove);
             Changed();
         }
     }
@@ -335,7 +335,7 @@ public sealed partial class ConfigWindow
             : e.Category ?? KnownEvents.CommonCategories[0];
 
         var events = pack.AllEvents()
-                         .Where(e => e.AppliesTo(editJob))
+                         .Where(EventShown)
                          .Where(e => q.Length == 0 ||
                                      e.Label.Contains(q, StringComparison.OrdinalIgnoreCase) ||
                                      e.Trigger.Contains(q, StringComparison.OrdinalIgnoreCase) ||
@@ -356,7 +356,7 @@ public sealed partial class ConfigWindow
                 var label = count > 0 ? $"{ev.Label}  ({count})" : ev.Label;
                 if (ImGui.Selectable($"{label}##pick_{ev.Name}"))
                 {
-                    if (count == 0) AddLine(pack, jobLines, ev.Name);
+                    if (count == 0) AddLine(pack, ev.Name);
                     SelectEvent(ev.Name);
                     lineSearch = string.Empty;
                     ImGui.CloseCurrentPopup();
@@ -407,17 +407,39 @@ public sealed partial class ConfigWindow
         Changed();
     }
 
-    private void AddLine(VoicePack pack, List<Line> jobLines, string eventName)
+    /// <summary>Adds an empty line: to the job being shown, or Every job (job abilities: their job).</summary>
+    private void AddLine(VoicePack pack, string eventName)
     {
-        jobLines.Add(new Line
+        var job = DefaultJobFor(pack.AllEvents().FirstOrDefault(e => e.Name == eventName));
+        if (!pack.Jobs.TryGetValue(job, out var lines)) pack.Jobs[job] = lines = new List<Line>();
+        lines.Add(new Line
         {
-            Id = pack.NextLineId(editJob, eventName),
+            Id = pack.NextLineId(job, eventName),
             Event = eventName,
-            Mood = KnownEvents.Moods[0],
             Weight = 1,
-            Job = editJob,
+            Job = job,
         });
         Changed();
+    }
+
+    private string DefaultJobFor(KnownEvents.Info? ev)
+    {
+        var specific = editJob is not (AllLines or VoicePack.SharedJob) && editJob.Length > 0;
+        if (ev?.Jobs is { Length: > 0 } jobs)
+            return specific && jobs.Contains(editJob) ? editJob
+                : EventWatcher.CurrentJob() is { } cur && jobs.Contains(cur) ? cur
+                : jobs[0];
+        return specific ? editJob : VoicePack.SharedJob;
+    }
+
+    /// <summary>Jobs a line for this event can be on: its jobs for job abilities, else Every job or any job.</summary>
+    private static IEnumerable<string> JobChoices(KnownEvents.Info ev, Line line)
+    {
+        var list = ev.Jobs is { Length: > 0 } jobs
+            ? jobs.ToList()
+            : new[] { VoicePack.SharedJob }.Concat(KnownEvents.Jobs).ToList();
+        if (!list.Contains(line.Job)) list.Insert(0, line.Job); // an older line on an unusual job stays selectable
+        return list;
     }
 
     /// <summary>A custom event's trigger at the top of its lines: a summary, or the full editor.</summary>
@@ -458,21 +480,22 @@ public sealed partial class ConfigWindow
         if (string.IsNullOrWhiteSpace(line.Text) && line.AudioPath == null)
             ImGui.TextColored(Warn, "Empty line: it won't play until you write something or add audio.");
 
-        // Mood
-        ImGui.SetNextItemWidth(95);
-        if (ImGui.BeginCombo("##mood", string.IsNullOrEmpty(line.Mood) ? "mood" : line.Mood))
+        // Which job this line plays on
+        ImGui.SetNextItemWidth(110);
+        if (ImGui.BeginCombo("##job", JobLabel(line.Job)))
         {
-            foreach (var m in KnownEvents.Moods)
+            foreach (var j in JobChoices(ev, line))
             {
-                if (ImGui.Selectable(m, m == line.Mood))
+                if (ImGui.Selectable(JobLabel(j), string.Equals(j, line.Job, StringComparison.OrdinalIgnoreCase)))
                 {
-                    line.Mood = m;
+                    plugin.Player.Stop();
+                    pack.MoveLine(line, j);
                     Changed();
                 }
             }
             ImGui.EndCombo();
         }
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Mood: a note for whoever records the line.");
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Which job this line plays on. Every job: any job.");
 
         // Weight
         ImGui.SameLine();

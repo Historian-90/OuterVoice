@@ -273,6 +273,36 @@ public class VoicePack
 
     public void RefreshAudio(Line line) => line.AudioPath = ResolveAudio(Folder, line);
 
+    /// <summary>
+    /// Moves a line to another job (or to Every job). Its recording is copied into that job's folder
+    /// (the old copy is left alone, so Discard still finds it), and the id changes only if the new job
+    /// already has a line with the same id.
+    /// </summary>
+    public void MoveLine(Line line, string newJob)
+    {
+        if (string.Equals(line.Job, newJob, StringComparison.OrdinalIgnoreCase)) return;
+        if (Jobs.TryGetValue(line.Job, out var from)) from.Remove(line);
+        if (!Jobs.TryGetValue(newJob, out var to)) Jobs[newJob] = to = new List<Line>();
+
+        var oldAudio = line.AudioPath;
+        var id = to.Any(l => l.Id == line.Id) ? NextLineId(newJob, line.Event) : line.Id;
+        line.Job = newJob;
+        line.Id = id;
+
+        if (oldAudio != null && File.Exists(oldAudio))
+        {
+            var dir = Path.Combine(Folder, newJob);
+            Directory.CreateDirectory(dir);
+            var name = id + Path.GetExtension(oldAudio).ToLowerInvariant();
+            var dest = Path.Combine(dir, name);
+            if (!string.Equals(Path.GetFullPath(dest), Path.GetFullPath(oldAudio), StringComparison.OrdinalIgnoreCase))
+                File.Copy(oldAudio, dest, overwrite: true);
+            line.Audio = name;
+        }
+        to.Add(line);
+        line.AudioPath = ResolveAudio(Folder, line);
+    }
+
     // Looks in <pack>\<JOB>\ first, then the pack folder (and a voice\ subfolder), by the
     // audio field or simply by <id>.mp3 / <id>.wav.
     private static string? ResolveAudio(string folder, Line line)

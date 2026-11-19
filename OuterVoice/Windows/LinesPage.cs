@@ -15,6 +15,9 @@ namespace OuterVoice.Windows;
 public sealed partial class ConfigWindow
 {
     private const string UnusedKey = "__unused";
+
+    /// <summary>The "Show" filter value that lists every line of every job.</summary>
+    private const string AllLines = "*";
     private const float ListWidth = 270f;
 
     /// <summary>The event shown on the right (or <see cref="UnusedKey"/>).</summary>
@@ -39,17 +42,16 @@ public sealed partial class ConfigWindow
             return;
         }
 
-        var jobs = OrderedJobs(pack).Select(j => j.Key).ToList();
-        if (!jobs.Contains(editJob))
-            editJob = EventWatcher.CurrentJob() is { } cur && jobs.Contains(cur) ? cur : jobs.FirstOrDefault() ?? string.Empty;
+        if (editJob.Length == 0) editJob = AllLines;
+        var lines = FilteredLines(pack);
 
         ImGui.BeginChild("##eventlist", new Vector2(ListWidth, 0), true);
-        DrawEventList(pack, jobs);
+        DrawEventList(pack, lines);
         ImGui.EndChild();
 
         ImGui.SameLine();
         ImGui.BeginChild("##eventdetail", Vector2.Zero, true);
-        DrawEventDetail(pack);
+        DrawEventDetail(pack, lines);
         ImGui.EndChild();
 
         if (deleteCustom != null)
@@ -64,14 +66,27 @@ public sealed partial class ConfigWindow
 
     // ---- Left: job, search, the list, and the add buttons ------------------------------------
 
-    private void DrawEventList(VoicePack pack, List<string> jobs)
+    /// <summary>
+    /// The lines the list and detail show for the "Show" filter: all lines, only Every job lines,
+    /// or what plays on one job (its own lines plus Every job lines).
+    /// </summary>
+    private List<Line> FilteredLines(VoicePack pack)
     {
-        DrawJobPicker(pack, jobs);
-        if (editJob.Length == 0 || !pack.Jobs.TryGetValue(editJob, out var jobLines))
+        IEnumerable<Line> Of(string job) => pack.Jobs.TryGetValue(job, out var l) ? l : Enumerable.Empty<Line>();
+        return editJob switch
         {
-            ImGui.TextColored(Muted, "Add a job to start writing lines.");
-            return;
-        }
+            AllLines => pack.Jobs.Values.SelectMany(l => l).ToList(),
+            VoicePack.SharedJob => Of(VoicePack.SharedJob).ToList(),
+            _ => Of(editJob).Concat(Of(VoicePack.SharedJob)).ToList(),
+        };
+    }
+
+    /// <summary>Events that make sense for the filter (job abilities only for their jobs).</summary>
+    private bool EventShown(KnownEvents.Info ev) => editJob == AllLines || ev.AppliesTo(editJob);
+
+    private void DrawEventList(VoicePack pack, List<Line> lines)
+    {
+        DrawShowFilter(pack);
 
         ImGui.SetNextItemWidth(-1);
         ImGui.InputTextWithHint("##linesearch", "Search events and lines...", ref lineSearch, 64);
@@ -79,7 +94,7 @@ public sealed partial class ConfigWindow
         // Leave room at the bottom for the buttons.
         var footer = ImGui.GetFrameHeightWithSpacing() * 2 + ImGui.GetStyle().ItemSpacing.Y;
         ImGui.BeginChild("##rows", new Vector2(0, -footer));
-        DrawEventRows(pack, jobLines);
+        DrawEventRows(pack, lines);
         ImGui.EndChild();
 
         ImGui.Separator();
@@ -90,7 +105,7 @@ public sealed partial class ConfigWindow
             ImGui.OpenPopup("##eventpicker");
         }
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Pick any event (wipe, Kugane, rain...) and start writing lines for it.");
-        DrawEventPicker(pack, jobLines);
+        DrawEventPicker(pack, lines);
 
         ImGui.SameLine();
         if (ImGui.Button("+ New", new Vector2(half, 0)))
@@ -107,68 +122,30 @@ public sealed partial class ConfigWindow
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Off: only events you've written lines for, and your own events.");
     }
 
-    /// <summary>Job dropdown, plus a small menu to add or remove jobs.</summary>
-    private void DrawJobPicker(VoicePack pack, List<string> jobs)
+    /// <summary>"Show": all lines, Every job lines, or one job's (which includes Every job lines).</summary>
+    private void DrawShowFilter(VoicePack pack)
     {
         ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("Job");
+        ImGui.TextUnformatted("Show");
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - ImGui.GetFrameHeight() - ImGui.GetStyle().ItemSpacing.X);
-        if (ImGui.BeginCombo("##editjob", editJob.Length > 0 ? JobLabel(editJob) : "(no jobs)"))
+        ImGui.SetNextItemWidth(-1);
+        var preview = editJob == AllLines ? "All lines" : JobLabel(editJob);
+        if (ImGui.BeginCombo("##showjob", preview))
         {
-            foreach (var j in jobs)
-                if (ImGui.Selectable(JobLabel(j), j == editJob))
-                    editJob = j;
+            if (ImGui.Selectable("All lines", editJob == AllLines)) editJob = AllLines;
+            if (ImGui.Selectable("Every job", editJob == VoicePack.SharedJob)) editJob = VoicePack.SharedJob;
+            ImGui.Separator();
+
+            // Jobs that have lines, plus the one you're on.
+            var jobs = pack.Jobs.Where(j => j.Key != VoicePack.SharedJob && j.Value.Count > 0).Select(j => j.Key).ToList();
+            if (EventWatcher.CurrentJob() is { } cur && !jobs.Contains(cur)) jobs.Add(cur);
+            foreach (var j in jobs.OrderBy(j => Array.IndexOf(KnownEvents.Jobs, j)))
+                if (ImGui.Selectable(j, j == editJob)) editJob = j;
             ImGui.EndCombo();
         }
-
-        ImGui.SameLine();
-        if (ImGuiComponents.IconButton("##jobmenu", FontAwesomeIcon.Plus))
-            ImGui.OpenPopup("##jobs");
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Add or remove jobs");
-
-        if (!ImGui.BeginPopup("##jobs")) return;
-
-        var available = KnownEvents.Jobs.Where(j => !pack.Jobs.ContainsKey(j)).ToArray();
-        if (available.Length > 0)
-        {
-            if (!available.Contains(addJobChoice))
-                addJobChoice = EventWatcher.CurrentJob() is { } cur && available.Contains(cur) ? cur : available[0];
-            ImGui.SetNextItemWidth(90);
-            if (ImGui.BeginCombo("##addjob", addJobChoice))
-            {
-                foreach (var j in available)
-                    if (ImGui.Selectable(j, j == addJobChoice))
-                        addJobChoice = j;
-                ImGui.EndCombo();
-            }
-            ImGui.SameLine();
-            if (ImGui.Button("Add job"))
-            {
-                pack.Jobs[addJobChoice] = new List<Line>();
-                editJob = addJobChoice;
-                Changed();
-                ImGui.CloseCurrentPopup();
-            }
-        }
-
-        if (editJob.Length > 0)
-        {
-            var ctrl = ImGui.GetIO().KeyCtrl;
-            if (!ctrl) ImGui.BeginDisabled();
-            if (ImGui.Button($"Remove {JobLabel(editJob)}"))
-            {
-                pack.Jobs.Remove(editJob);
-                editJob = string.Empty;
-                selectedEvent = null;
-                Changed();
-                ImGui.CloseCurrentPopup();
-            }
-            if (!ctrl) ImGui.EndDisabled();
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                ImGui.SetTooltip("Hold Ctrl to remove this job and all its lines. (Audio files are kept.)");
-        }
-        ImGui.EndPopup();
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Filters the list. A job shows what plays on it: its own lines plus Every job lines.\n" +
+                             "Each line's own job is set on the line itself.");
     }
 
     /// <summary>A row in the list: a heading, or an event.</summary>
@@ -180,7 +157,7 @@ public sealed partial class ConfigWindow
         var q = lineSearch.Trim();
         var showAll = !plugin.Configuration.LinesHideEmpty;
         var events = pack.AllEvents()
-                         .Where(e => e.AppliesTo(editJob) || jobLines.Any(l => l.Event == e.Name))
+                         .Where(e => EventShown(e) || jobLines.Any(l => l.Event == e.Name))
                          .ToList();
 
         bool Shown(KnownEvents.Info ev)
@@ -292,11 +269,8 @@ public sealed partial class ConfigWindow
 
     // ---- Right: the selected event -----------------------------------------------------------
 
-    private void DrawEventDetail(VoicePack pack)
+    private void DrawEventDetail(VoicePack pack, List<Line> jobLines)
     {
-        if (editJob.Length == 0 || !pack.Jobs.TryGetValue(editJob, out var jobLines))
-            return;
-
         if (selectedEvent == UnusedKey)
         {
             DrawUnusedLines(pack, jobLines);
@@ -320,7 +294,7 @@ public sealed partial class ConfigWindow
         {
             ImGui.SameLine(ImGui.GetContentRegionAvail().X + ImGui.GetCursorPosX() - 70);
             if (ImGui.Button("Play##testev", new Vector2(70, 0)))
-                plugin.Speaker.Test(ev.Name, editJob);
+                plugin.Speaker.Test(ev.Name, TestJob(ev, evLines));
             if (ImGui.IsItemHovered()) ImGui.SetTooltip("Play one of these lines now (even out of combat).");
         }
         ImGui.TextColored(Muted, EventPath(ev));
@@ -346,7 +320,7 @@ public sealed partial class ConfigWindow
             if (CategoryNote(ev.Category) is { } note)
                 ImGui.TextColored(Muted, note);
             ImGui.PopTextWrapPos();
-            var triggerInfo = JobTriggers.Describe(ev.Name, editJob);
+            var triggerInfo = JobTriggers.Describe(ev.Name, TestJob(ev, evLines));
             if (triggerInfo.Length > 0)
             {
                 ImGui.SameLine();
@@ -377,7 +351,7 @@ public sealed partial class ConfigWindow
         ImGui.Spacing();
 
         if (evLines.Count == 0)
-            ImGui.TextColored(Muted, $"No lines for {JobLabel(editJob)} yet.");
+            ImGui.TextColored(Muted, editJob == AllLines ? "No lines yet." : $"No lines for {JobLabel(editJob)} yet.");
 
         Line? toDelete = null;
         foreach (var line in evLines)
@@ -385,13 +359,25 @@ public sealed partial class ConfigWindow
                 toDelete = line;
         if (toDelete != null)
         {
-            jobLines.Remove(toDelete);
+            if (pack.Jobs.TryGetValue(toDelete.Job, out var list)) list.Remove(toDelete);
             Changed();
         }
 
         ImGui.Spacing();
         if (ImGui.Button("+ Add line"))
-            AddLine(pack, jobLines, ev.Name);
+            AddLine(pack, ev.Name);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(editJob is AllLines or VoicePack.SharedJob
+                ? "The new line plays on every job. Change it with the job box on the line."
+                : $"The new line plays on {editJob}. Change it with the job box on the line.");
+    }
+
+    /// <summary>The job Play tests with: the filter's job, else the one you're on, else a job that has lines.</summary>
+    private string TestJob(KnownEvents.Info ev, List<Line> evLines)
+    {
+        if (editJob is not (AllLines or VoicePack.SharedJob)) return editJob;
+        if (EventWatcher.CurrentJob() is { } cur && (ev.Jobs == null || ev.Jobs.Contains(cur))) return cur;
+        return evLines.FirstOrDefault(l => l.Job != VoicePack.SharedJob)?.Job ?? ev.Jobs?.FirstOrDefault() ?? VoicePack.SharedJob;
     }
 
     private void DrawLinesWelcome()
