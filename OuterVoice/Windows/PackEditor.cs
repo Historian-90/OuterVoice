@@ -125,7 +125,7 @@ public sealed partial class ConfigWindow
             ImGui.TableSetupColumn("Recorded");
             ImGui.TableHeadersRow();
 
-            foreach (var (job, allLines) in OrderedJobs(pack))
+            foreach (var (job, allLines) in OrderedJobs(pack).Where(j => j.Value.Count > 0 || j.Key == VoicePack.SharedJob))
             {
                 var lines = allLines.Where(l => !pack.IsUnused(l)).ToList();
                 var unused = allLines.Count - lines.Count;
@@ -151,6 +151,79 @@ public sealed partial class ConfigWindow
         ImGui.TextColored(Muted, "Each line's job is set with the job box on the line (Lines page).");
 
         DrawExport(pack);
+        DrawCleanup(pack);
+    }
+
+    private List<FileInfo>? cleanupFiles;
+
+    /// <summary>Voice Pack > Clean up: find recordings no line uses, show them, delete on confirm.</summary>
+    private void DrawCleanup(VoicePack pack)
+    {
+        Section("Clean up");
+        ImGui.PushTextWrapPos();
+        ImGui.TextColored(Muted, "Recordings no line uses pile up in the pack folder (old copies left when lines move between " +
+                                 "jobs, deleted lines...). They're never sent to friends, but they take up space.");
+        ImGui.PopTextWrapPos();
+
+        var blocked = plugin.PackDirty || plugin.PackRecovery != null;
+        if (blocked) ImGui.BeginDisabled();
+        if (ImGui.Button("Find unused files"))
+            cleanupFiles = pack.UnusedFiles();
+        if (blocked) ImGui.EndDisabled();
+        if (blocked)
+        {
+            ImGui.SameLine();
+            ImGui.TextColored(Warn, plugin.PackDirty ? "Save first." : "Restore or throw away the kept changes first.");
+            cleanupFiles = null;
+            return;
+        }
+
+        if (cleanupFiles == null) return;
+        if (cleanupFiles.Count == 0)
+        {
+            ImGui.TextColored(Good, "Nothing to clean up.");
+            return;
+        }
+
+        var bytes = cleanupFiles.Sum(f => f.Exists ? f.Length : 0);
+        ImGui.TextUnformatted($"{cleanupFiles.Count} unused file{(cleanupFiles.Count == 1 ? "" : "s")}, {bytes / 1048576.0:0.0} MB:");
+        ImGui.BeginChild("##unusedfiles", new Vector2(0, Math.Min(160, cleanupFiles.Count * ImGui.GetTextLineHeightWithSpacing() + 8)), true);
+        foreach (var f in cleanupFiles)
+            ImGui.TextColored(Muted, Path.GetRelativePath(pack.Folder, f.FullName));
+        ImGui.EndChild();
+
+        if (ImGui.Button($"Move {cleanupFiles.Count} file{(cleanupFiles.Count == 1 ? "" : "s")} to the Recycle Bin"))
+        {
+            var removed = 0;
+            foreach (var f in cleanupFiles)
+            {
+                try
+                {
+                    Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
+                        f.FullName,
+                        Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                        Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                    removed++;
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Log.Warning(ex, $"Couldn't recycle {f.FullName}");
+                }
+            }
+
+            // Job folders that are now empty go too.
+            foreach (var dir in Directory.EnumerateDirectories(pack.Folder))
+                if (!Directory.EnumerateFileSystemEntries(dir).Any())
+                    try { Directory.Delete(dir); } catch { /* leave it */ }
+
+            SetStatus(removed == cleanupFiles.Count
+                ? $"Moved {removed} unused file{(removed == 1 ? "" : "s")} to the Recycle Bin."
+                : $"Moved {removed} of {cleanupFiles.Count} files; the rest couldn't be removed (see /xllog).",
+                removed != cleanupFiles.Count);
+            cleanupFiles = null;
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("Cancel")) cleanupFiles = null;
     }
 
     private bool previewPortraitWhenReady;

@@ -263,6 +263,12 @@ public class VoicePack
     public void SaveTo(string folder)
     {
         Directory.CreateDirectory(folder);
+
+        // Jobs whose lines all moved elsewhere don't need an empty group in the file.
+        foreach (var empty in Jobs.Where(j => j.Value.Count == 0 && !j.Key.Equals(SharedJob, StringComparison.OrdinalIgnoreCase))
+                                  .Select(j => j.Key).ToList())
+            Jobs.Remove(empty);
+
         // Write to a temp file first so a crash mid-save can't corrupt the pack.
         var path = Path.Combine(folder, FileName);
         var tmp = path + ".tmp";
@@ -307,6 +313,34 @@ public class VoicePack
             }
         }
         return oldFiles;
+    }
+
+    private static readonly string[] AudioExtensions = [".mp3", ".wav"];
+
+    /// <summary>
+    /// Recordings in the pack folder that no line uses (old copies left when lines moved or were
+    /// renamed, deleted lines...), plus old portrait images. Exports never include these.
+    /// </summary>
+    public List<FileInfo> UnusedFiles()
+    {
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in Jobs.Values.SelectMany(l => l))
+            if (line.AudioPath != null) used.Add(Path.GetFullPath(line.AudioPath));
+        if (PortraitPath is { } portrait) used.Add(Path.GetFullPath(portrait));
+
+        if (Folder.Length == 0 || !Directory.Exists(Folder)) return new List<FileInfo>();
+        return Directory.EnumerateFiles(Folder, "*", SearchOption.AllDirectories)
+                        .Select(f => new FileInfo(f))
+                        .Where(f =>
+                        {
+                            var ext = f.Extension.ToLowerInvariant();
+                            var isAudio = AudioExtensions.Contains(ext);
+                            var isOldPortrait = PortraitExtensions.Contains(ext) &&
+                                                f.Name.StartsWith("portrait", StringComparison.OrdinalIgnoreCase);
+                            return (isAudio || isOldPortrait) && !used.Contains(f.FullName);
+                        })
+                        .OrderBy(f => f.FullName, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
     }
 
     /// <summary>A new line id like "raise_04" that isn't used yet in this job.</summary>

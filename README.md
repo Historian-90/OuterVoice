@@ -43,6 +43,13 @@ Each line has a weight (how often it's picked). The
 job (what plays on it: its own lines plus Every job lines). New lines go to the job you're showing,
 or to Every job.
 
+## Clean up
+
+Recordings that no line uses build up in the pack folder (old copies left when lines move between
+jobs, deleted lines...). They're never sent to friends. **Voice Pack > Clean up > Find unused files**
+lists them with their total size; **Move to the Recycle Bin** removes them (and empty job folders).
+Save first: it only looks at saved lines.
+
 ## Portrait
 
 On the **Voice Pack** page, **Portrait > Choose a picture...** sets your character's picture (PNG or
