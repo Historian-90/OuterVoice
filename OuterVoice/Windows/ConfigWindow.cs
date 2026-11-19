@@ -236,17 +236,6 @@ public sealed partial class ConfigWindow : Window
         if (Group("Homes"))
             DrawHomes(cfg);
 
-        if (Group("Jobs"))
-        {
-            var shared = cfg.SharedLinesOnOtherJobs;
-            if (ImGui.Checkbox("Use Every job lines on jobs without their own", ref shared))
-            {
-                cfg.SharedLinesOnOtherJobs = shared;
-                cfg.Save();
-            }
-            HelpMarker("Lines written under \"Every job\" work on any job. With this off, only jobs that have their own lines speak.");
-        }
-
         if (Group("Testing", openByDefault: false))
         {
             ImGui.PushTextWrapPos();

@@ -19,9 +19,6 @@ public class Configuration : IPluginConfiguration
 
     public bool Enabled { get; set; } = true;
 
-    /// <summary>On jobs with no lines of their own, still speak the pack's shared (ALL) lines.</summary>
-    public bool SharedLinesOnOtherJobs { get; set; } = false;
-
     /// <summary>Folder holding voicepack.json and the audio clips.</summary>
     public string PackFolder { get; set; } = string.Empty;
 

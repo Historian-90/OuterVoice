@@ -52,7 +52,7 @@ public sealed class Speaker
 
     /// <summary>Whether a pack has anything to say on a job.</summary>
     public bool SpeaksOn(VoicePack pack, string job) =>
-        pack.HasJob(job) || (plugin.Configuration.SharedLinesOnOtherJobs && pack.HasJob(VoicePack.SharedJob));
+        pack.HasJob(job) || pack.HasJob(VoicePack.SharedJob); // Every job lines play on any job
 
     public bool SpeaksOn(string job) => Pack != null && SpeaksOn(Pack, job);
 

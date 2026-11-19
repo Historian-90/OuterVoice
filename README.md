@@ -35,7 +35,9 @@ character, sharing), **Friends** (friends' packs) and **Settings**.
 3. Click **Save** at the top when you're done.
 4. **Play** (top right of an event) plays one of its lines. Settings > Testing plays any event.
 
-Lines set to **Every job** play on any job. Each line has a weight (how often it's picked). The
+Lines set to **Every job** play on any job. On a job that also has its own lines for an event, both
+are mixed: playing SGE picks from SGE lines and Every job lines together (never another job's).
+Each line has a weight (how often it's picked). The
 **Show** box at the top of the Lines page only filters the list: **All lines**, **Every job**, or one
 job (what plays on it: its own lines plus Every job lines). New lines go to the job you're showing,
 or to Every job.
