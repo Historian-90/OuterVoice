@@ -93,6 +93,13 @@ public class VoicePack
 
     public string Version { get; set; } = "1";
     public int GlobalCooldownSeconds { get; set; } = 20;
+
+    /// <summary>
+    /// The owner's idle settings, written into shared copies so friends hear your idle lines on the
+    /// same schedule you do. Null in your own pack and in packs from older versions.
+    /// </summary>
+    public IdleFrequency? SharedIdleFrequency { get; set; }
+    public int? SharedIdleMinutes { get; set; }
     /// <summary>Optional timing overrides per event; anything missing uses the built-in defaults.</summary>
     public Dictionary<string, EventDef> Events { get; set; } = new();
 

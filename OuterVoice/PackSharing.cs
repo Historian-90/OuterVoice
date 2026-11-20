@@ -193,6 +193,10 @@ public static class PackSharing
                 copy.Portrait = name;
             }
 
+            // Friends use your idle settings for your idle lines.
+            copy.SharedIdleFrequency = Plugin.Instance.Configuration.IdleFrequency;
+            copy.SharedIdleMinutes = Plugin.Instance.Configuration.IdleMinutes;
+
             copy.SaveTo(staging);
             if (File.Exists(zipPath)) File.Delete(zipPath);
             ZipFile.CreateFromDirectory(staging, zipPath, CompressionLevel.Optimal, includeBaseDirectory: false);

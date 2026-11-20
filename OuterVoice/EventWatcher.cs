@@ -304,7 +304,7 @@ public sealed class EventWatcher : IDisposable
         CheckArrivals(now, me, meActor, actors);
         CheckStates(meActor, me, busy);
         CheckFriendStates(actors, me, busy);
-        CheckIdle(now, busy);
+        CheckIdle(now, busy, actors);
     }
 
     // ---- Joining a party ------------------------------------------------------------------
@@ -884,28 +884,43 @@ public sealed class EventWatcher : IDisposable
     }
     private long lastIdleMinute = -1;
 
+    private static int IdleChance(IdleFrequency f) => f switch
+    {
+        IdleFrequency.Rare => 3,
+        IdleFrequency.Normal => 7,
+        IdleFrequency.Frequent => 15,
+        _ => 0,
+    };
+
     /// <summary>
-    /// Once a minute, after standing still (out of combat and duties) long enough, roll for an idle line. The roll uses the
-    /// server minute, so friends who are idle too get the same result and the same single speaker.
+    /// Idle lines are personal: once a server minute, each voiced character who has been standing
+    /// still long enough (you, or a friend near you) rolls for an idle line. The roll uses their name
+    /// and the minute, and friends' packs carry their owner's idle settings, so your screen and
+    /// theirs agree on when their character speaks. At most one idle line a minute.
     /// </summary>
-    private unsafe void CheckIdle(DateTime now, bool busy)
+    private unsafe void CheckIdle(DateTime now, bool busy, List<Actor> actors)
     {
         var minute = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.GetServerTime() / 60;
         if (minute == lastIdleMinute) return;
         lastIdleMinute = minute;
+        if (busy) return;
 
         var cfg = Plugin.Instance.Configuration;
-        var chance = cfg.IdleFrequency switch
-        {
-            IdleFrequency.Rare => 3,
-            IdleFrequency.Normal => 7,
-            IdleFrequency.Frequent => 15,
-            _ => 0,
-        };
-        if (chance == 0 || busy || now - lastBusy < TimeSpan.FromMinutes(Math.Max(1, cfg.IdleMinutes))) return;
+        if (cfg.IdleFrequency == IdleFrequency.Off) return; // you've switched idle chatter off
+        var myId = Plugin.ObjectTable.LocalPlayer?.EntityId;
 
-        if (Fnv1a($"idle|{minute}") % 100 < (ulong)chance)
-            SayShared("idle");
+        foreach (var actor in actors.OrderBy(a => a.CharacterId, StringComparer.OrdinalIgnoreCase))
+        {
+            var isMe = actor.EntityId == myId;
+            var freq = isMe ? cfg.IdleFrequency : actor.Pack.SharedIdleFrequency ?? cfg.IdleFrequency;
+            var minutes = isMe ? cfg.IdleMinutes : actor.Pack.SharedIdleMinutes ?? cfg.IdleMinutes;
+            var chance = IdleChance(freq);
+            if (chance == 0) continue;
+            if (!isMe && (actor.Obj == null || actor.Obj.StatusFlags.HasFlag(StatusFlags.InCombat))) continue;
+            if (StillFor(actor) < TimeSpan.FromMinutes(Math.Max(1, minutes))) continue;
+            if (Fnv1a($"idle|{actor.CharacterId.ToLowerInvariant()}|{minute}") % 100 >= (ulong)chance) continue;
+            if (Say(actor, "idle")) return;
+        }
     }
 
     /// <summary>A voiced character starts casting a Limit Break (level from the action's cast bar).</summary>
@@ -1242,8 +1257,28 @@ public sealed class EventWatcher : IDisposable
             list.Add(new Actor(m.EntityId, id, job, pack, m.GameObject as IBattleChara));
         }
 
+        // Friends standing near you count too, party or not.
+        foreach (var obj in Plugin.ObjectTable)
+        {
+            if (obj is not IPlayerCharacter p || p.EntityId == me.EntityId || p.EntityId == 0) continue;
+            if (System.Numerics.Vector3.Distance(p.Position, me.Position) > NearbyFriendRange) continue;
+            if (list.Any(a => a.EntityId == p.EntityId)) continue;
+
+            var world = p.HomeWorld.ValueNullable?.Name.ExtractText();
+            if (string.IsNullOrEmpty(world)) continue;
+            var id = $"{p.Name.TextValue}@{world}";
+            var job = JobAbbrev(p.ClassJob.RowId);
+            if (job == null || speaker.FriendPack(id) is not { } pack || !speaker.SpeaksOn(pack, job))
+                continue;
+
+            list.Add(new Actor(p.EntityId, id, job, pack, p));
+        }
+
         return list;
     }
+
+    /// <summary>How close a friend outside your party has to be to count (yalms).</summary>
+    private const float NearbyFriendRange = 40f;
 
     private static IEnumerable<Member> Members(IPlayerCharacter me)
     {

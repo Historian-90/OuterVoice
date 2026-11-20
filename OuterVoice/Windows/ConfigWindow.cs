@@ -296,6 +296,7 @@ public sealed partial class ConfigWindow : Window
                 {
                     cfg.IdleFrequency = (IdleFrequency)freq;
                     cfg.Save();
+                    RepublishForFriends();
                 }
                 if (cfg.IdleFrequency != IdleFrequency.Off)
                 {
@@ -307,6 +308,8 @@ public sealed partial class ConfigWindow : Window
                         cfg.IdleMinutes = mins;
                         cfg.Save();
                     }
+                    if (ImGui.IsItemDeactivatedAfterEdit())
+                        RepublishForFriends();
                     if (ImGui.IsItemHovered())
                         ImGui.SetTooltip("How long you must stand still before idle lines can play.\nMoving, fighting, a duty, crafting or gathering starts the wait over.");
                 }
@@ -476,5 +479,14 @@ public sealed partial class ConfigWindow : Window
         ImGui.TextColored(Muted, "(?)");
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(text);
+    }
+
+    /// <summary>Friends' copies carry your idle settings; republish so a change reaches them.</summary>
+    private void RepublishForFriends()
+    {
+        var cfg = plugin.Configuration;
+        if (plugin.Speaker.Pack != null && !plugin.PackDirty && cfg.PublishOnSave &&
+            !string.IsNullOrWhiteSpace(cfg.PublishFolder))
+            plugin.Publisher.Publish();
     }
 }

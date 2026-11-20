@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.8
+- Idle lines are now personal: each character speaks when *they* have been standing still, and
+  friends hear your idle lines at the same moment you do.
+- Friends standing near you now count even when you're not in a party with them.
+- Your idle settings travel with your shared pack. After updating, press Publish now once so
+  friends get them.
+
 ## 0.9.7
 - Fixed: arrival lines (Island Sanctuary, cities, homes...) could be lost right after a loading
   screen, and the plugin then treated later arrivals there as "same place" and stayed silent.
