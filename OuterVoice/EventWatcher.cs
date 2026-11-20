@@ -1254,7 +1254,12 @@ public sealed class EventWatcher : IDisposable
             if (job == null || speaker.FriendPack(id) is not { } pack || !speaker.SpeaksOn(pack, job))
                 continue;
 
-            list.Add(new Actor(m.EntityId, id, job, pack, m.GameObject as IBattleChara));
+            // Party members elsewhere (another zone, or out of view) can't speak here: only
+            // characters actually around you do, which is also what their own screen sees.
+            if (m.GameObject is not IBattleChara obj || m.Territory.RowId != Plugin.ClientState.TerritoryType)
+                continue;
+
+            list.Add(new Actor(m.EntityId, id, job, pack, obj));
         }
 
         // Friends standing near you count too, party or not.
