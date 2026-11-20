@@ -57,6 +57,8 @@ public sealed class EventWatcher : IDisposable
     private readonly Dictionary<uint, uint> lastHp = new();
     private readonly Dictionary<uint, DateTime> lowHpSince = new();
     private readonly HashSet<(uint Caster, uint Target)> raisesSeen = new();
+    /// <summary>Party members we watched fall (HP to 0) and who haven't got back up yet.</summary>
+    private readonly HashSet<uint> deadSeen = new();
     private readonly Dictionary<(uint Caster, string Event), uint> partnerHolder = new();
     private readonly HashSet<(uint Caster, string Event)> partnersSeen = new();
     private readonly HashSet<(uint Caster, uint Target, uint Status)> givenSeen = new();
@@ -93,7 +95,9 @@ public sealed class EventWatcher : IDisposable
     /// <summary>A party member (or you) who has a voice pack.</summary>
     private sealed record Actor(uint EntityId, string CharacterId, string Job, VoicePack Pack, IBattleChara? Obj);
 
-    private sealed record Member(uint EntityId, uint Hp, uint MaxHp, bool IsTank, StatusList? Statuses);
+    /// <param name="Present">In your zone and loaded near you. Party members elsewhere still show in the
+/// party list, but their HP and statuses there can't be trusted.</param>
+    private sealed record Member(uint EntityId, uint Hp, uint MaxHp, bool IsTank, StatusList? Statuses, bool Present);
 
     public EventWatcher(Speaker speaker)
     {
@@ -209,6 +213,17 @@ public sealed class EventWatcher : IDisposable
         {
             if (m.MaxHp == 0) continue;
 
+            if (!m.Present)
+            {
+                // Away (another zone, or not loaded yet): forget their HP so coming back isn't read
+                // as a death or a recovery, and keep a partner buff they hold from counting as dropped.
+                lastHp.Remove(m.EntityId);
+                deadSeen.Remove(m.EntityId);
+                foreach (var key in partnerHolder.Where(kv => kv.Value == m.EntityId).Select(kv => kv.Key).ToList())
+                    partnersSeen.Add(key);
+                continue;
+            }
+
             // Deaths: the dead character voices their own death; tank deaths are a shared event.
             var prevHp = lastHp.TryGetValue(m.EntityId, out var p) ? p : m.Hp;
             if (prevHp > 0 && m.Hp == 0)
@@ -219,6 +234,8 @@ public sealed class EventWatcher : IDisposable
                 else if (m.IsTank)
                     SayShared("tank_death");
             }
+            if (prevHp > 0 && m.Hp == 0) deadSeen.Add(m.EntityId);
+            else if (m.Hp > 0) deadSeen.Remove(m.EntityId);
             lastHp[m.EntityId] = m.Hp;
 
             // Clutch save: dipped under 15% and came back above 50% within 3s.
@@ -242,7 +259,10 @@ public sealed class EventWatcher : IDisposable
                 if (s.SourceId == 0 || !byId.TryGetValue(s.SourceId, out var caster)) continue;
 
                 // Raise: someone gets a Raise from a voiced character.
-                if (raiseIds.Contains(s.StatusId) && raisesSeen.Add((caster.EntityId, m.EntityId)))
+                // Only for someone we actually saw fall: a newcomer or a party member coming back
+                // into range can carry a status that looks like a Raise without having died here.
+                if (raiseIds.Contains(s.StatusId) && raisesSeen.Add((caster.EntityId, m.EntityId)) &&
+                    m.Hp == 0 && deadSeen.Contains(m.EntityId))
                     Say(caster, "raise");
 
                 foreach (var (def, ids, _) in triggers)
@@ -1289,12 +1309,12 @@ public sealed class EventWatcher : IDisposable
     {
         if (Plugin.PartyList.Length == 0)
         {
-            yield return new Member(me.EntityId, me.CurrentHp, me.MaxHp, IsTankJob(me.ClassJob.RowId), me.StatusList);
+            yield return new Member(me.EntityId, me.CurrentHp, me.MaxHp, IsTankJob(me.ClassJob.RowId), me.StatusList, true);
 
             // Duty Support / Trust NPCs aren't in the party list, but they are in the object table.
             foreach (var npc in Plugin.ObjectTable.OfType<IBattleNpc>()
                                       .Where(n => n.BattleNpcKind == BattleNpcSubKind.NpcPartyMember))
-                yield return new Member(npc.EntityId, npc.CurrentHp, npc.MaxHp, IsTankJob(npc.ClassJob.RowId), npc.StatusList);
+                yield return new Member(npc.EntityId, npc.CurrentHp, npc.MaxHp, IsTankJob(npc.ClassJob.RowId), npc.StatusList, true);
             yield break;
         }
 
@@ -1302,8 +1322,10 @@ public sealed class EventWatcher : IDisposable
         {
             var m = Plugin.PartyList[i];
             if (m == null) continue;
-            var statuses = (m.GameObject as IBattleChara)?.StatusList ?? m.Statuses;
-            yield return new Member(m.EntityId, m.CurrentHP, m.MaxHP, IsTankJob(m.ClassJob.RowId), statuses);
+            var obj = m.GameObject as IBattleChara;
+            var present = obj != null && m.Territory.RowId == Plugin.ClientState.TerritoryType;
+            yield return new Member(m.EntityId, m.CurrentHP, m.MaxHP, IsTankJob(m.ClassJob.RowId),
+                                    obj?.StatusList ?? m.Statuses, present);
         }
     }
 
@@ -1312,6 +1334,7 @@ public sealed class EventWatcher : IDisposable
         lastHp.Clear();
         lowHpSince.Clear();
         raisesSeen.Clear();
+        deadSeen.Clear();
         partnerHolder.Clear();
         givenSeen.Clear();
         selfSeen.Clear();

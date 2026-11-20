@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.10
+- Fixed: the Raise line could play when someone joined the party mid-duty, or when a party member
+  came back into range (for example, rejoining you after leaving an instance later). It now only
+  plays for someone you actually saw fall.
+- Party members who are away no longer count for deaths or HP changes until they're back near you.
+
 ## 0.9.9
 - Fixed: a party member in another zone could be picked to comment on your weather, time of day
   and other shared moments. Only friends who are actually around you speak now.
