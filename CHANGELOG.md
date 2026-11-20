@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.11
+- New: while a voice line plays, the game's music, sound effects, ambience, system and performance
+  sounds fade down smoothly, then fade back up when the line ends, so whispers and quiet lines are
+  easier to hear. On by default; turn it off or set how quiet the rest of the game gets under
+  Settings > Playback.
+
 ## 0.9.10
 - Fixed: the Raise line could play when someone joined the party mid-duty, or when a party member
   came back into range (for example, rejoining you after leaving an instance later). It now only

@@ -166,6 +166,27 @@ public sealed partial class ConfigWindow : Window
             }
             HelpMarker("Voices get quieter with the game's Master and Voice sliders, and go silent when either is muted.");
 
+            var duck = cfg.DuckGameAudio;
+            if (ImGui.Checkbox("Lower other game sounds while a line plays", ref duck))
+            {
+                cfg.DuckGameAudio = duck;
+                cfg.Save();
+            }
+            HelpMarker("Music, sound effects, ambience, system and performance sounds fade down while a voice line plays, " +
+                       "then fade back up. Helps hear whispers and quiet lines. Moving one of those sliders yourself " +
+                       "mid-line keeps your new setting.");
+            if (cfg.DuckGameAudio)
+            {
+                var keep = cfg.DuckKeepPercent;
+                ImGui.SetNextItemWidth(220);
+                if (ImGui.SliderInt("Other sounds while speaking", ref keep, 0, 100, "%d%%"))
+                {
+                    cfg.DuckKeepPercent = keep;
+                    cfg.Save();
+                }
+                HelpMarker("How loud the rest of the game stays during a line: 100% = unchanged, 0% = silent.");
+            }
+
             var packCd = plugin.Speaker.Pack?.GlobalCooldownSeconds ?? 20;
             var cd = cfg.GlobalCooldownOverride >= 0 ? cfg.GlobalCooldownOverride : packCd;
             ImGui.SetNextItemWidth(220);

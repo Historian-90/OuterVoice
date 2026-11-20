@@ -36,6 +36,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public Configuration Configuration { get; }
     public VoicePlayer Player { get; }
+    public Ducking Ducking { get; }
     public LipSync Lips { get; }
     public Sync.Publisher Publisher { get; }
     public Sync.SubscriptionManager Subscriptions { get; private set; } = null!;
@@ -73,6 +74,7 @@ public sealed class Plugin : IDalamudPlugin
         Publisher = new Sync.Publisher(this);
         Speaker = new Speaker(this);
         Portraits = new Portraits();
+        Ducking = new Ducking(this);
         ReloadPack();
         PackSharing.LoadFriends(Speaker);
         Subscriptions = new Sync.SubscriptionManager(this);
@@ -111,6 +113,7 @@ public sealed class Plugin : IDalamudPlugin
 
         watcher.Dispose();
         Portraits.Dispose();
+        Ducking.Dispose();
         Subscriptions.Dispose();
         Player.Dispose();
         Lips.Dispose();

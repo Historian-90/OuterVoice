@@ -28,6 +28,15 @@ public class Configuration : IPluginConfiguration
     /// <summary>Scale (and mute) voices with the game's Master and Voice volume settings.</summary>
     public bool FollowGameVolume { get; set; } = true;
 
+    /// <summary>Lower the game's music and sound effects while a line plays.</summary>
+    public bool DuckGameAudio { get; set; } = true;
+
+    /// <summary>How loud the other game sounds stay while lowered, in percent of their normal level.</summary>
+    public int DuckKeepPercent { get; set; } = 40;
+
+    /// <summary>Normal volumes while lowered (so a crash mid-line can be undone on the next start).</summary>
+    public Dictionary<string, uint> DuckedVolumes { get; set; } = new();
+
     /// <summary>Run friends' clips through a limiter so nothing is ear-blastingly loud.</summary>
     public bool LimitFriendLoudness { get; set; } = true;
 
