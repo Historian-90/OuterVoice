@@ -38,6 +38,16 @@ public class Line
     [JsonIgnore]
     public bool IsLimited => OnlyJobs.Count > 0;
 
+    /// <summary>
+    /// For idle lines: the postures it plays in ("Standing", "Sitting", "Swimming"). Empty = standing.
+    /// </summary>
+    public List<string> IdlePoses { get; set; } = new();
+
+    /// <summary>Whether this idle line fits a posture.</summary>
+    public bool PlaysInPose(WorldState.Pose pose) =>
+        IdlePoses.Count == 0 ? pose == WorldState.Pose.Standing
+                             : IdlePoses.Contains(pose.ToString(), StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Whether this line can play on a job.</summary>
     public bool PlaysOn(string job) =>
         !string.Equals(Job, VoicePack.SharedJob, StringComparison.OrdinalIgnoreCase)

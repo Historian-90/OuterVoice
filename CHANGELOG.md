@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.12
+- Characters lying down (in bed, /doze) don't say anything at all, so no more idle chatter while
+  you're "asleep" and away from the keyboard.
+- Idle lines now have Standing / Sitting / Swimming tick boxes, so you can write lines for idling in
+  a chair or floating in water. Existing idle lines count as Standing: tick Sitting or Swimming on
+  any that fit those too.
+
 ## 0.9.11
 - New: while a voice line plays, the game's music, sound effects, ambience, system and performance
   sounds fade down smoothly, then fade back up when the line ends, so whispers and quiet lines are

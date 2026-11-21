@@ -624,6 +624,10 @@ public sealed partial class ConfigWindow
         }
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Higher weight = picked more often.");
 
+        // Idle lines: which postures they fit.
+        if (ev.Name == "idle")
+            DrawIdlePoses(line);
+
         // Partner events: is this line for first choosing a partner, or for switching?
         if (ev.SupportsInitial)
         {
@@ -707,4 +711,35 @@ public sealed partial class ConfigWindow
         pack.Jobs.OrderBy(j => j.Key == VoicePack.SharedJob).ThenBy(j => j.Key);
 
     private static string JobLabel(string job) => job == VoicePack.SharedJob ? "Every job" : job;
+
+    private static readonly (string Pose, string Label)[] IdlePoseChoices =
+    [
+        ("Standing", "Standing"),
+        ("Sitting", "Sitting"),
+        ("Swimming", "Swimming"),
+    ];
+
+    /// <summary>Tick boxes for where an idle line fits: standing (the default), sitting, swimming.</summary>
+    private void DrawIdlePoses(Line line)
+    {
+        var current = line.IdlePoses.Count == 0 ? new List<string> { "Standing" } : line.IdlePoses;
+        foreach (var (pose, label) in IdlePoseChoices)
+        {
+            ImGui.SameLine();
+            var on = current.Contains(pose, StringComparer.OrdinalIgnoreCase);
+            if (ImGui.Checkbox($"{label}##pose{pose}", ref on))
+            {
+                var set = new List<string>(current);
+                if (on) set.Add(pose);
+                else set.RemoveAll(p => string.Equals(p, pose, StringComparison.OrdinalIgnoreCase));
+                if (set.Count == 0) set.Add("Standing"); // a line has to fit somewhere
+                // Standing alone is the default, stored as an empty list.
+                line.IdlePoses = set.Count == 1 && set[0] == "Standing" ? new() : set;
+                Changed();
+                current = line.IdlePoses.Count == 0 ? new List<string> { "Standing" } : line.IdlePoses;
+            }
+        }
+        InfoMarker("When this idle line can play: standing still, sitting (chairs, /sit, /groundsit) or floating " +
+                   "in water. Tick more than one if it fits several.\n\nNobody talks while lying down (beds, /doze).");
+    }
 }

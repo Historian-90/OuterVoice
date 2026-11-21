@@ -939,7 +939,9 @@ public sealed class EventWatcher : IDisposable
             if (!isMe && (actor.Obj == null || actor.Obj.StatusFlags.HasFlag(StatusFlags.InCombat))) continue;
             if (StillFor(actor) < TimeSpan.FromMinutes(Math.Max(1, minutes))) continue;
             if (Fnv1a($"idle|{actor.CharacterId.ToLowerInvariant()}|{minute}") % 100 >= (ulong)chance) continue;
-            if (Say(actor, "idle")) return;
+            var pose = WorldState.PoseOf(actor.Obj);
+            if (pose == WorldState.Pose.Lying) continue;
+            if (Say(actor, "idle", idlePose: pose)) return;
         }
     }
 
@@ -1202,14 +1204,20 @@ public sealed class EventWatcher : IDisposable
 
     // ---- Who speaks ---------------------------------------------------------------------
 
-    private bool Say(Actor actor, string eventName, bool? initial = null)
+    private bool Say(Actor actor, string eventName, bool? initial = null, WorldState.Pose? idlePose = null)
     {
+        // Lying down (in bed, /doze): that character says nothing at all.
+        if (WorldState.PoseOf(actor.Obj) == WorldState.Pose.Lying)
+            return false;
+
+        Func<Line, bool>? filter = idlePose is { } pose ? l => l.PlaysInPose(pose) : null;
+
         // A variant of this built-in event whose conditions hold plays instead of it.
         if (!eventName.StartsWith("custom_", StringComparison.Ordinal) && FindVariant(actor, eventName) is { } variant)
             return speaker.Trigger(actor.Pack, variant.Id, actor.Job, Seed(actor.CharacterId, variant.Id),
-                                   speakerEntityId: actor.EntityId) != null;
+                                   speakerEntityId: actor.EntityId, lineFilter: filter) != null;
         return speaker.Trigger(actor.Pack, eventName, actor.Job, Seed(actor.CharacterId, eventName), initial: initial,
-                               speakerEntityId: actor.EntityId) != null;
+                               speakerEntityId: actor.EntityId, lineFilter: filter) != null;
     }
 
     /// <summary>
@@ -1224,6 +1232,7 @@ public sealed class EventWatcher : IDisposable
         var candidates = Actors(me)
             .Where(a => a.Pack.LinesFor(a.Job, eventName).Count > 0 || FindVariant(a, eventName) != null)
             .Where(a => !healersOnly || IsHealerJob(a.Job))
+            .Where(a => WorldState.PoseOf(a.Obj) != WorldState.Pose.Lying) // asleep: someone else speaks
             .OrderBy(a => a.CharacterId, StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (candidates.Count == 0) return;

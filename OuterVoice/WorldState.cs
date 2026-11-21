@@ -370,4 +370,45 @@ public static class WorldState
     public static HashSet<string> Picks(string value) =>
         new(value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
             StringComparer.OrdinalIgnoreCase);
+
+    // ---------- Posture ----------
+
+    public enum Pose { Standing, Sitting, Lying, Swimming }
+
+    private static HashSet<ushort>? sitEmotes, lyingEmotes;
+
+    private static void LoadPoseEmotes()
+    {
+        if (sitEmotes != null) return;
+        sitEmotes = new();
+        lyingEmotes = new();
+        foreach (var row in Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Emote>())
+        {
+            var cmd = row.TextCommand.ValueNullable?.Command.ExtractText().TrimStart('/').ToLowerInvariant();
+            if (cmd is "sit" or "groundsit") sitEmotes.Add((ushort)row.RowId);
+            else if (cmd is "doze") lyingEmotes.Add((ushort)row.RowId);
+        }
+    }
+
+    /// <summary>
+    /// Sitting (/sit, /groundsit, chairs), lying down (/doze, beds), swimming or diving, or standing.
+    /// </summary>
+    public static unsafe Pose PoseOf(Dalamud.Game.ClientState.Objects.Types.IGameObject? who)
+    {
+        if (who == null || who.Address == 0) return Pose.Standing;
+        var chara = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)who.Address;
+        var isMe = who.EntityId == Plugin.ObjectTable.LocalPlayer?.EntityId;
+        if (isMe ? Plugin.Condition[ConditionFlag.Swimming] || Plugin.Condition[ConditionFlag.Diving] : chara->IsSwimming)
+            return Pose.Swimming;
+
+        if (chara->Mode is FFXIVClientStructs.FFXIV.Client.Game.Character.CharacterModes.InPositionLoop
+                        or FFXIVClientStructs.FFXIV.Client.Game.Character.CharacterModes.EmoteLoop)
+        {
+            LoadPoseEmotes();
+            var emote = chara->EmoteController.EmoteId;
+            if (lyingEmotes!.Contains(emote)) return Pose.Lying;
+            if (sitEmotes!.Contains(emote)) return Pose.Sitting;
+        }
+        return Pose.Standing;
+    }
 }

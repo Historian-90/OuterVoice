@@ -79,7 +79,7 @@ public sealed class Speaker
     public string? LastDrop { get; private set; }
 
     public Line? Trigger(VoicePack pack, string eventName, string job, long seed, bool force = false, bool? initial = null,
-                         uint speakerEntityId = 0)
+                         uint speakerEntityId = 0, Func<Line, bool>? lineFilter = null)
     {
         var cfg = plugin.Configuration;
         LastDrop = null;
@@ -141,6 +141,8 @@ public sealed class Speaker
                           .ToList();
         if (initial.HasValue)
             options = options.Where(l => l.Initial == initial.Value).ToList();
+        if (lineFilter != null)
+            options = options.Where(lineFilter).ToList();
 
         if (!force)
         {
