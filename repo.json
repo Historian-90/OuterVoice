@@ -3,7 +3,7 @@
     "Author": "CJ",
     "Name": "Outer Voice",
     "InternalName": "OuterVoice",
-    "AssemblyVersion": "0.9.11.0",
+    "AssemblyVersion": "0.9.12.0",
     "Punchline": "Voiced lines for your character, and your friends', when things happen in duties.",
     "Description": "Give your character a voice. Record lines for events like raises, deaths, Kardia swaps, wipes and clears, then share your voice pack with friends: when you're in a party together, each of you hears the other's character speak too.\n\nOnly one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play. Optional: if you subscribe to a friend's Dropbox or OneDrive link, the plugin downloads their pack from that service (and nothing else).",
     "ApplicableVersion": "any",
@@ -17,10 +17,10 @@
     ],
     "DalamudApiLevel": 15,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.11/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.11/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.11/latest.zip",
-    "LastUpdate": 1795207401,
-    "Changelog": "- New: while a voice line plays, the game's music, sound effects, ambience, system and performance\n  sounds fade down smoothly, then fade back up when the line ends, so whispers and quiet lines are\n  easier to hear. On by default; turn it off or set how quiet the rest of the game gets under\n  Settings > Playback."
+    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.12/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.12/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.12/latest.zip",
+    "LastUpdate": 1795291288,
+    "Changelog": "- Characters lying down (in bed, /doze) don't say anything at all, so no more idle chatter while\n  you're \"asleep\" and away from the keyboard.\n- Idle lines now have Standing / Sitting / Swimming tick boxes, so you can write lines for idling in\n  a chair or floating in water. Existing idle lines count as Standing: tick Sitting or Swimming on\n  any that fit those too."
   }
 ]
