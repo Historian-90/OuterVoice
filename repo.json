@@ -3,7 +3,7 @@
     "Author": "CJ",
     "Name": "Outer Voice",
     "InternalName": "OuterVoice",
-    "AssemblyVersion": "0.9.14.0",
+    "AssemblyVersion": "0.9.15.0",
     "Punchline": "Voiced lines for your character, and your friends', when things happen in duties.",
     "Description": "Give your character a voice. Record lines for events like raises, deaths, Kardia swaps, wipes and clears, then share your voice pack with friends: when you're in a party together, each of you hears the other's character speak too.\n\nOnly one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play. Optional: if you subscribe to a friend's Dropbox or OneDrive link, the plugin downloads their pack from that service (and nothing else).",
     "ApplicableVersion": "any",
@@ -17,10 +17,10 @@
     ],
     "DalamudApiLevel": 15,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.14/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.14/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.14/latest.zip",
-    "LastUpdate": 1795320869,
-    "Changelog": "- Fixed: duty start lines were often skipped, because the duty begins right as the loading screen\n  ends, while Outer Voice is still keeping quiet. They now play a couple of seconds later.\n- Wipe and duty complete lines wait out a cutscene or another line instead of being dropped."
+    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.15/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.15/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.15/latest.zip",
+    "LastUpdate": 1795364912,
+    "Changelog": "- You and your friends now always hear the same line, not just the same voice. Lines can now come\n  up twice in a row, so give events that happen often (bursts, idle, weather, duty start) 4 or more\n  lines. Events with only a few lines show a reminder on the Lines page."
   }
 ]
