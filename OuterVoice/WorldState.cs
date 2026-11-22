@@ -375,6 +375,15 @@ public static class WorldState
 
     public enum Pose { Standing, Sitting, Lying, Swimming }
 
+    /// <summary>For Settings > Testing: the pose and the raw values it came from.</summary>
+    public static unsafe string DescribePose(Dalamud.Game.ClientState.Objects.Types.IGameObject? who)
+    {
+        if (who == null || who.Address == 0) return "Pose: -";
+        var chara = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)who.Address;
+        return $"Pose: {PoseOf(who)} (posture {chara->EmoteController.GetPosture()}, mode {chara->Mode}, " +
+               $"emote {chara->EmoteController.EmoteId})";
+    }
+
     private static HashSet<ushort>? sitEmotes, lyingEmotes;
 
     private static void LoadPoseEmotes()
@@ -401,6 +410,20 @@ public static class WorldState
         if (isMe ? Plugin.Condition[ConditionFlag.Swimming] || Plugin.Condition[ConditionFlag.Diving] : chara->IsSwimming)
             return Pose.Swimming;
 
+        // The game's own posture: covers beds and couches (any /doze pose), chairs and the ground.
+        switch (chara->EmoteController.GetPosture())
+        {
+            case FFXIVClientStructs.FFXIV.Client.Game.Control.EmoteController.Posture.Dozing:
+                return Pose.Lying;
+            case FFXIVClientStructs.FFXIV.Client.Game.Control.EmoteController.Posture.SittingInChair:
+            case FFXIVClientStructs.FFXIV.Client.Game.Control.EmoteController.Posture.SittingOnGround:
+                return Pose.Sitting;
+            case FFXIVClientStructs.FFXIV.Client.Game.Control.EmoteController.Posture.Swimming:
+            case FFXIVClientStructs.FFXIV.Client.Game.Control.EmoteController.Posture.Diving:
+                return Pose.Swimming;
+        }
+
+        // Backup: the emote being held.
         if (chara->Mode is FFXIVClientStructs.FFXIV.Client.Game.Character.CharacterModes.InPositionLoop
                         or FFXIVClientStructs.FFXIV.Client.Game.Character.CharacterModes.EmoteLoop)
         {

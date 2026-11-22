@@ -280,6 +280,7 @@ public sealed partial class ConfigWindow : Window
         {
             ImGui.PushTextWrapPos();
             ImGui.TextColored(Muted, WorldState.Describe());
+            ImGui.TextColored(Muted, WorldState.DescribePose(Plugin.ObjectTable.LocalPlayer));
             ImGui.TextColored(Muted, $"Last arrival: {EventWatcher.LastArrival}");
             ImGui.PopTextWrapPos();
             ImGui.Spacing();

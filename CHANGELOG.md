@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.13
+- Fixed: lying down on a couch or bed in some poses wasn't recognised, so idle lines could still play.
+  Sitting and swimming are now read the same reliable way.
+- Settings > Testing shows the pose the plugin sees, to help spot anything it gets wrong.
+
 ## 0.9.12
 - Characters lying down (in bed, /doze) don't say anything at all, so no more idle chatter while
   you're "asleep" and away from the keyboard.
