@@ -1349,6 +1349,13 @@ public sealed class EventWatcher : IDisposable
             hash ^= c;
             hash *= 1099511628211UL;
         }
+        // FNV alone leaves patterns in the low bits (picks for back-to-back moments alternated or
+        // cycled), so scramble it properly (SplitMix64 finalizer). Still the same on every PC.
+        hash ^= hash >> 30;
+        hash *= 0xBF58476D1CE4E5B9UL;
+        hash ^= hash >> 27;
+        hash *= 0x94D049BB133111EBUL;
+        hash ^= hash >> 31;
         return hash & 0x7FFFFFFFFFFFFFFF;
     }
 

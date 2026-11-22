@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.17
+- Fixed: custom events cut off a line that had just started (for example Triplecast over your Burst
+  line) even with Urgent unticked. Now only Urgent custom events can interrupt.
+  If you relied on that (a custom event meant to replace a built-in line), tick Urgent, or make it a
+  variant of the built-in event instead.
+- Lines no longer repeat back to back: the line picked last time for an event is skipped for the
+  next few minutes, and friends still hear the same line as you.
+- The random picks are properly shuffled now; before, they could fall into patterns.
+
 ## 0.9.16
 - New custom event condition **Uses an action**: plays the moment an action goes off, so instant
   skills, oGCD abilities and finished casts can have lines (for you and for friends).

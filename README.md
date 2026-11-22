@@ -110,9 +110,11 @@ name to people who open it in a browser. You can turn the link off at any time.
 - **Personal events belong to their owner.** A raise, death, Kardia swap or big heal is only
   voiced by the character who did it.
 - **Everyone hears the same line.** Each time an event plays, the line is picked at random, but in a
-  way every player's machine agrees on, so you and your friends hear the very same line. Because of
-  that, a line can come up twice in a row. Give events that happen often (bursts, idle, weather,
-  duty start) **4 or more lines** and repeats become rare.
+  way every player's machine agrees on, so you and your friends hear the very same line. The line
+  picked last time for that event is skipped for the next few minutes, so a character never says the
+  same line twice in a row (as long as the event has more than one line).
+- **Custom events wait their turn.** A custom event only cuts off a line that's already playing when
+  its **Urgent** box is ticked.
 - **Quiet during scenes.** During cutscenes, NPC dialogue and loading screens (and for a few
   seconds after), no voice or text plays, anything playing stops, and nothing is saved up to play
   afterwards.

@@ -18,14 +18,19 @@ public sealed class Speaker
     private DateTime lastAnyLine = DateTime.MinValue;
 
     /// <summary>Who started the current line, when, and whether it was a custom event.</summary>
-    private (string Voice, DateTime At, bool Custom) lastStart;
 
     /// <summary>
     /// A custom event is more specific than a built-in one, so if both fire for the same moment
     /// (Panhaima's big-heal line and a custom "Panhaimatinon" event, say), the custom line wins
     /// as long as it comes within this long of the built-in one starting.
     /// </summary>
-    private static readonly TimeSpan CustomOverrideWindow = TimeSpan.FromSeconds(1.5);
+    /// <summary>
+    /// The line the dice chose last time, per character + event, whether or not it actually played
+    /// (blocked by another line, a cooldown...). Everyone who saw the event records the same choice,
+    /// so skipping it next time keeps friends in sync while stopping back-to-back repeats.
+    /// </summary>
+    private readonly Dictionary<string, (string Line, DateTime At)> chosen = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly TimeSpan ChosenMemory = TimeSpan.FromMinutes(5);
 
     private static bool IsCustomId(string eventName) => eventName.StartsWith("custom_", StringComparison.Ordinal);
 
@@ -90,6 +95,32 @@ public sealed class Speaker
         var def = pack.GetEvent(eventName);
         var now = DateTime.UtcNow;
 
+        // A line with no text and no recording has nothing to say; never pick it.
+        var options = pack.LinesFor(job, eventName)
+                          .Where(l => !string.IsNullOrWhiteSpace(l.Text) || l.AudioPath != null)
+                          .ToList();
+        if (initial.HasValue)
+            options = options.Where(l => l.Initial == initial.Value).ToList();
+        if (lineFilter != null)
+            options = options.Where(lineFilter).ToList();
+
+        // Choose the line first (before anything below can block it), so every PC that saw this
+        // event records the same choice. The line chosen last time (within a few minutes) is skipped.
+        var memoryKey = $"{pack.Character}|{eventName}|{initial}";
+        if (!force && options.Count > 1 && chosen.TryGetValue(memoryKey, out var prev) && now - prev.At <= ChosenMemory)
+        {
+            var fresh = options.Where(l => LineKey(l) != prev.Line).ToList();
+            if (fresh.Count > 0) options = fresh;
+        }
+        var line = Pick(options, seed);
+        if (line == null)
+        {
+            LastDrop = "no line to pick";
+            return null;
+        }
+        if (!force)
+            chosen[memoryKey] = (LineKey(line), now);
+
         // Settings > Chatter: categories can be switched off, or made less / more frequent.
         var chatter = cfg.ChatterFor(KnownEvents.ChatterCategory(pack, eventName));
         if (!force && chatter == Chattiness.Off && KnownEvents.ChatterCategory(pack, eventName) != "Idle")
@@ -111,9 +142,8 @@ public sealed class Speaker
             var player = plugin.Player;
 
             // One voice at a time: only a more urgent line may cut in (replacing, never overlapping).
-            var overridesBuiltIn = IsCustomId(eventName) && !lastStart.Custom && lastStart.Voice == pack.Character &&
-                                   now - lastStart.At <= CustomOverrideWindow;
-            var interrupts = (player.IsPlaying && def.Priority > player.CurrentPriority) || overridesBuiltIn;
+            // Custom events count as urgent only when "Urgent" is ticked (higher priority).
+            var interrupts = player.IsPlaying && def.Priority > player.CurrentPriority;
             if (player.IsPlaying && !interrupts)
             {
                 LastDrop = "another line was playing";
@@ -131,29 +161,9 @@ public sealed class Speaker
             }
         }
 
-        // A line with no text and no recording has nothing to say; never pick it.
-        var options = pack.LinesFor(job, eventName)
-                          .Where(l => !string.IsNullOrWhiteSpace(l.Text) || l.AudioPath != null)
-                          .ToList();
-        if (initial.HasValue)
-            options = options.Where(l => l.Initial == initial.Value).ToList();
-        if (lineFilter != null)
-            options = options.Where(lineFilter).ToList();
-
-        // No "don't repeat the last line" memory here on purpose: each PC would remember different
-        // things, and then friends hear different lines. The shared seed alone picks the line, so
-        // everyone nearby hears the same one. More lines per event = fewer repeats.
-
-        var line = Pick(options, seed);
-        if (line == null)
-        {
-            LastDrop = "no line to pick";
-            return null;
-        }
 
         lastEventTime[cooldownKey] = now;
         lastAnyLine = now;
-        lastStart = (pack.Character, now, IsCustomId(eventName));
 
         if (line.AudioPath != null)
         {
