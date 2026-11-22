@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.16
+- New custom event condition **Uses an action**: plays the moment an action goes off, so instant
+  skills, oGCD abilities and finished casts can have lines (for you and for friends).
+- New custom event condition **Player joins the party**: plays when a specific player joins the
+  party you're in. Pick them from your friends or party, or type their name.
+- "Casting" is now called **Starts casting**, to tell it apart from Uses an action.
+
 ## 0.9.15
 - You and your friends now always hear the same line, not just the same voice. Lines can now come
   up twice in a row, so give events that happen often (bursts, idle, weather, duty start) 4 or more

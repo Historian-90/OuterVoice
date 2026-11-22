@@ -246,7 +246,9 @@ Click **+ New** at the bottom of the Lines page to make your own trigger. It ope
 its conditions ready to fill in (**Edit trigger** opens them again later). Your event plays a line the moment
 **all** of its conditions are true at the same time. Conditions can be:
 
-- **Casting** an action (anything with a cast bar)
+- **Starts casting** an action (the moment a cast bar appears)
+- **Uses an action**: the moment an action goes off, so instant skills, oGCD abilities and finished
+  casts all count (e.g. `Swiftcast`, `Kerachole`)
 - **Has status**: a game buff or debuff on you. Pick **Player (You)** for a status on you, or **Target** for one you
   put on someone else (a party member or your target), like Haima
 - **Doing emote**: e.g. `wave` or `/wave`
@@ -256,6 +258,8 @@ its conditions ready to fill in (**Edit trigger** opens them again later). Your 
 - **Weather**: the current weather is of a kind (Rain, Snow, Fog...)
 - **Idle**: you've been standing still (out of combat and duties) for at least N minutes
 - **Joining a party**: you just joined someone's party
+- **Player joins the party**: a specific player (e.g. `Aereon Tucker`, world optional) joins the party
+  you're in
 - **Time of day**: Eorzea time is in any of the periods you tick (Dawn, Morning, Day, Dusk, Evening, Night)
 - **Place**: you're in any of the places you tick (City or a specific city, Field, Inn, Residential
   area, Home, House, Apartment, Gold Saucer, Island Sanctuary, Duty, or a registered place)

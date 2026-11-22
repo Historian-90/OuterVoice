@@ -45,6 +45,17 @@ public enum ConditionType
     /// plays instead of the built-in one.
     /// </summary>
     BuiltIn,
+
+    /// <summary>
+    /// You use an action with this name: fires when it goes off, so instant skills and abilities
+    /// work too (a cast spell fires when the cast finishes).
+    /// </summary>
+    UseAction,
+
+    /// <summary>
+    /// A specific player joins your party. Value: their name, "First Last" or "First Last@World".
+    /// </summary>
+    PlayerJoins,
 }
 
 /// <summary>Who a "Has status" condition looks at.</summary>
@@ -124,7 +135,7 @@ public class CustomEvent
 
     public static string Describe(CustomCondition c) => c.Type switch
     {
-        ConditionType.Cast => $"casting {Quote(c.Value)}",
+        ConditionType.Cast => $"starting to cast {Quote(c.Value)}",
         ConditionType.Status => c.Scope == ConditionScope.Target
             ? $"you give {Quote(c.Value)} to someone"
             : $"you have {Quote(c.Value)}",
@@ -139,6 +150,8 @@ public class CustomEvent
         ConditionType.Weather => $"the weather is {(c.Value.Length > 0 ? c.Value.ToLowerInvariant() : "?")}",
         ConditionType.Idle => $"standing still {CustomCondition.IdleMinutes(c.Value)}+ min",
         ConditionType.JoinParty => "you join a party",
+        ConditionType.UseAction => $"using {Quote(c.Value)}",
+        ConditionType.PlayerJoins => $"{(c.Value.Length > 0 ? c.Value : "?")} joins your party",
         ConditionType.BuiltIn => $"{(KnownEvents.Get(c.Value)?.Label ?? "?").ToLowerInvariant()} happens",
         ConditionType.TimeOfDay => $"it's {OrList(c.Value)}",
         ConditionType.Place => $"in {OrList(c.Value)}",

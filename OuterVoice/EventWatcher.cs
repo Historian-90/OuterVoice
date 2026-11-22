@@ -344,6 +344,7 @@ public sealed class EventWatcher : IDisposable
             partnerHolder.Remove(key);
 
         CheckChests(actors, now);
+        NoteActionsUsed(byId, now);
 
         foreach (var actor in actors)
         {
@@ -418,6 +419,7 @@ public sealed class EventWatcher : IDisposable
 
         var before = partyCommitted;
         partyCommitted = snap;
+        NotePlayerJoins(me, before, snap);
 
         // You joined someone's party: you weren't in one, and you're not the leader of this one.
         if (before.Others.Count == 0 && snap.Others.Count > 0 && !snap.IAmLeader)
@@ -510,6 +512,54 @@ public sealed class EventWatcher : IDisposable
 
     private bool Recent(Actor actor, string kind) =>
         moments.TryGetValue((actor.EntityId, kind), out var at) && DateTime.UtcNow - at <= MomentWindow;
+
+    private static string ActionMoment(string actionName) => "act:" + actionName.Trim().TrimStart('/').ToLowerInvariant();
+    private static string JoinedMoment(string player) => "joined:" + player.Trim().ToLowerInvariant();
+
+    /// <summary>Records actions that just went off (instant or cast) for "Uses an action".</summary>
+    private void NoteActionsUsed(Dictionary<uint, Actor> byId, DateTime now)
+    {
+        var watcher = Plugin.Instance.Actions;
+        if (!watcher.Working) return;
+        if (watcher.Watching.Count != byId.Count || !byId.Keys.All(watcher.Watching.Contains))
+            watcher.Watching = new HashSet<uint>(byId.Keys);
+        foreach (var (caster, actionId) in watcher.Drain())
+        {
+            if (!byId.ContainsKey(caster)) continue;
+            var name = ActionName(actionId);
+            if (name.Length > 0) moments[(caster, ActionMoment(name))] = now;
+        }
+    }
+
+    /// <summary>
+    /// For "Player joins the party": who just joined, as seen by each voiced character here (you,
+    /// and friends nearby). Joining someone else's party yourself only counts for them, not for you.
+    /// </summary>
+    private void NotePlayerJoins(IPlayerCharacter me, PartySnapshot before, PartySnapshot snap)
+    {
+        var myId = Plugin.CurrentCharacterId();
+        var iJoinedTheirs = before.Others.Count == 0 && snap.Others.Count > 0 && !snap.IAmLeader;
+        var newcomers = snap.Others.Keys.Where(k => !before.Others.ContainsKey(k)).ToList();
+        if (newcomers.Count == 0) return;
+        var now = DateTime.UtcNow;
+
+        foreach (var a in Actors(me))
+        {
+            var isMe = a.EntityId == me.EntityId;
+            IEnumerable<string> joined;
+            if (isMe) joined = iJoinedTheirs ? [] : newcomers;
+            else if (iJoinedTheirs) joined = myId != null ? [myId] : [];
+            else if (newcomers.Contains(a.CharacterId, StringComparer.OrdinalIgnoreCase)) joined = []; // they're the one joining
+            else joined = newcomers;
+
+            foreach (var id in joined)
+            {
+                moments[(a.EntityId, JoinedMoment(id))] = now;
+                var at = id.IndexOf('@');
+                if (at > 0) moments[(a.EntityId, JoinedMoment(id[..at]))] = now; // name without the world
+            }
+        }
+    }
 
     private void FlushPendingLines()
     {
@@ -1039,6 +1089,8 @@ public sealed class EventWatcher : IDisposable
                        string.Equals(currentWeatherLabel, c.Value.Trim(), StringComparison.OrdinalIgnoreCase);
             case ConditionType.Idle: return StillFor(actor) >= TimeSpan.FromMinutes(CustomCondition.IdleMinutes(c.Value));
             case ConditionType.JoinParty: return Recent(actor, MomentJoin);
+            case ConditionType.UseAction: return c.Value.Length > 0 && Recent(actor, ActionMoment(c.Value));
+            case ConditionType.PlayerJoins: return c.Value.Length > 0 && Recent(actor, JoinedMoment(c.Value));
             case ConditionType.TimeOfDay: return WorldState.Picks(c.Value).Contains(currentPeriod);
             case ConditionType.Place: return WorldState.Picks(c.Value).Overlaps(WorldState.CurrentPlaceLabels(isMe));
         }

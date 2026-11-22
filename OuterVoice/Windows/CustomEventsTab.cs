@@ -9,8 +9,8 @@ namespace OuterVoice.Windows;
 public sealed partial class ConfigWindow
 {
     private static readonly string[] ConditionLabels =
-        ["Casting", "Has status", "Doing emote", "Has Moodle", "Treasure coffer", "Weather", "Idle", "Joining a party",
-         "Time of day", "Place", "State", "Built-in event"];
+        ["Starts casting", "Has status", "Doing emote", "Has Moodle", "Treasure coffer", "Weather", "Idle", "Joining a party",
+         "Time of day", "Place", "State", "Built-in event", "Uses an action", "Player joins the party"];
 
     private static readonly string[] ScopeLabels = ["Player (You)", "Target"];
 
@@ -31,6 +31,8 @@ public sealed partial class ConfigWindow
         "",
         "",
         "",
+        "Action name, e.g. Swiftcast or Kerachole",
+        "Player name, e.g. Aereon Tucker",
     ];
 
     private string customSearch = string.Empty;
@@ -143,6 +145,50 @@ public sealed partial class ConfigWindow
                 if (ImGui.IsItemHovered())
                     ImGui.SetTooltip("Makes this a variant: when this built-in event fires and the other conditions are true,\n" +
                                      "this event's line plays instead of the built-in one.");
+                break;
+            }
+            case ConditionType.UseAction:
+            {
+                var value = c.Value;
+                if (ImGui.InputTextWithHint("##value", ConditionHints[(int)c.Type], ref value, 128))
+                {
+                    c.Value = value;
+                    Changed();
+                }
+                InfoMarker("Fires the moment the action goes off: instant skills, oGCD abilities and finished casts.\n" +
+                           "For a spell's cast bar starting, use \"Starts casting\" instead.\n\n" +
+                           "Works for you and for friends whose packs use it.");
+                break;
+            }
+            case ConditionType.PlayerJoins:
+            {
+                var value = c.Value;
+                ImGui.SetNextItemWidth(Math.Max(120, ImGui.GetContentRegionAvail().X - 90));
+                if (ImGui.InputTextWithHint("##value", ConditionHints[(int)c.Type], ref value, 128))
+                {
+                    c.Value = value;
+                    Changed();
+                }
+                ImGui.SameLine();
+                if (ImGui.Button("Pick...##pickplayer"))
+                    ImGui.OpenPopup("##pickplayer");
+                if (ImGui.BeginPopup("##pickplayer"))
+                {
+                    var names = plugin.Configuration.Subscriptions.Select(s => s.Character)
+                        .Concat(Plugin.PartyList.Select(m => $"{m.Name.TextValue}@{m.World.ValueNullable?.Name.ExtractText()}"))
+                        .Where(n => !string.IsNullOrWhiteSpace(n) && !n.EndsWith('@'))
+                        .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(n => n).ToList();
+                    if (names.Count == 0) ImGui.TextColored(Muted, "No friends or party members to pick from.");
+                    foreach (var n in names)
+                        if (ImGui.Selectable(n))
+                        {
+                            c.Value = n;
+                            Changed();
+                        }
+                    ImGui.EndPopup();
+                }
+                InfoMarker("Plays when this player joins the party you're in (or you invite them).\n" +
+                           "The world part (@Siren) is optional.");
                 break;
             }
             case ConditionType.JoinParty:

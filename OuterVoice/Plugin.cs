@@ -25,6 +25,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IToastGui ToastGui { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IGameConfig GameConfig { get; private set; } = null!;
+    [PluginService] internal static IGameInteropProvider GameInterop { get; private set; } = null!;
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static ITextureReadbackProvider TextureReadback { get; private set; } = null!;
@@ -37,6 +38,7 @@ public sealed class Plugin : IDalamudPlugin
     public Configuration Configuration { get; }
     public VoicePlayer Player { get; }
     public Ducking Ducking { get; }
+    public ActionWatcher Actions { get; }
     public LipSync Lips { get; }
     public Sync.Publisher Publisher { get; }
     public Sync.SubscriptionManager Subscriptions { get; private set; } = null!;
@@ -75,6 +77,7 @@ public sealed class Plugin : IDalamudPlugin
         Speaker = new Speaker(this);
         Portraits = new Portraits();
         Ducking = new Ducking(this);
+        Actions = new ActionWatcher();
         ReloadPack();
         PackSharing.LoadFriends(Speaker);
         Subscriptions = new Sync.SubscriptionManager(this);
@@ -114,6 +117,7 @@ public sealed class Plugin : IDalamudPlugin
         watcher.Dispose();
         Portraits.Dispose();
         Ducking.Dispose();
+        Actions.Dispose();
         Subscriptions.Dispose();
         Player.Dispose();
         Lips.Dispose();
