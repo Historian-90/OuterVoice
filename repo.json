@@ -3,7 +3,7 @@
     "Author": "CJ",
     "Name": "Outer Voice",
     "InternalName": "OuterVoice",
-    "AssemblyVersion": "0.9.12.0",
+    "AssemblyVersion": "0.9.13.0",
     "Punchline": "Voiced lines for your character, and your friends', when things happen in duties.",
     "Description": "Give your character a voice. Record lines for events like raises, deaths, Kardia swaps, wipes and clears, then share your voice pack with friends: when you're in a party together, each of you hears the other's character speak too.\n\nOnly one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play. Optional: if you subscribe to a friend's Dropbox or OneDrive link, the plugin downloads their pack from that service (and nothing else).",
     "ApplicableVersion": "any",
@@ -17,10 +17,10 @@
     ],
     "DalamudApiLevel": 15,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.12/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.12/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.12/latest.zip",
-    "LastUpdate": 1795291288,
-    "Changelog": "- Characters lying down (in bed, /doze) don't say anything at all, so no more idle chatter while\n  you're \"asleep\" and away from the keyboard.\n- Idle lines now have Standing / Sitting / Swimming tick boxes, so you can write lines for idling in\n  a chair or floating in water. Existing idle lines count as Standing: tick Sitting or Swimming on\n  any that fit those too."
+    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.13/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.13/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.13/latest.zip",
+    "LastUpdate": 1795311172,
+    "Changelog": "- Fixed: lying down on a couch or bed in some poses wasn't recognised, so idle lines could still play.\n  Sitting and swimming are now read the same reliable way.\n- Settings > Testing shows the pose the plugin sees, to help spot anything it gets wrong."
   }
 ]
