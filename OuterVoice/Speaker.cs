@@ -33,8 +33,6 @@ public sealed class Speaker
     //  - per trigger: the last line a character said for an event can't be picked for that event
     //    again until a different line for the same event has played;
     //  - if the event only has one line, it waits until the character has said anything else.
-    private readonly Dictionary<string, string> lastLineByVoice = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, string> lastLineByTrigger = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Friends' clips longer than this are skipped.</summary>
     public static readonly TimeSpan MaxFriendClip = TimeSpan.FromSeconds(30);
@@ -133,8 +131,6 @@ public sealed class Speaker
             }
         }
 
-        var voiceKey = pack.Character;
-        var triggerKey = $"{voiceKey}|{job}|{eventName}|{initial}";
         // A line with no text and no recording has nothing to say; never pick it.
         var options = pack.LinesFor(job, eventName)
                           .Where(l => !string.IsNullOrWhiteSpace(l.Text) || l.AudioPath != null)
@@ -144,33 +140,15 @@ public sealed class Speaker
         if (lineFilter != null)
             options = options.Where(lineFilter).ToList();
 
-        if (!force)
-        {
-            // Skip the line this character last said for this trigger...
-            var fresh = lastLineByTrigger.TryGetValue(triggerKey, out var lastForTrigger)
-                ? options.Where(l => LineKey(l) != lastForTrigger).ToList()
-                : options;
-
-            // ...unless it's the only line, in which case it may repeat once the character has
-            // said something else in between.
-            if (fresh.Count == 0 && options.Count > 0 &&
-                (!lastLineByVoice.TryGetValue(voiceKey, out var lastAny) || lastAny != lastForTrigger))
-                fresh = options;
-
-            options = fresh;
-        }
+        // No "don't repeat the last line" memory here on purpose: each PC would remember different
+        // things, and then friends hear different lines. The shared seed alone picks the line, so
+        // everyone nearby hears the same one. More lines per event = fewer repeats.
 
         var line = Pick(options, seed);
         if (line == null)
         {
             LastDrop = "no line to pick";
             return null;
-        }
-
-        if (!force)
-        {
-            lastLineByVoice[voiceKey] = LineKey(line);
-            lastLineByTrigger[triggerKey] = LineKey(line);
         }
 
         lastEventTime[cooldownKey] = now;

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.15
+- You and your friends now always hear the same line, not just the same voice. Lines can now come
+  up twice in a row, so give events that happen often (bursts, idle, weather, duty start) 4 or more
+  lines. Events with only a few lines show a reminder on the Lines page.
+
 ## 0.9.14
 - Fixed: duty start lines were often skipped, because the duty begins right as the loading screen
   ends, while Outer Voice is still keeping quiet. They now play a couple of seconds later.

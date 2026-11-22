@@ -365,6 +365,15 @@ public sealed partial class ConfigWindow
         }
 
         ImGui.Spacing();
+        if (evLines.Count is > 0 and < 4)
+        {
+            ImGui.PushTextWrapPos();
+            ImGui.TextColored(Muted,
+                "Tip: each time this plays, a line is picked at random (the same one for everyone nearby), " +
+                "so with only a few lines you'll hear repeats. Events that come up often, like bursts, idle, " +
+                "weather or duty start, sound best with 4 or more lines.");
+            ImGui.PopTextWrapPos();
+        }
         if (ImGui.Button("+ Add line"))
             AddLine(pack, ev.Name);
         if (ImGui.IsItemHovered())
