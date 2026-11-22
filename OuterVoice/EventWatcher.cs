@@ -153,13 +153,51 @@ public sealed class EventWatcher : IDisposable
     private void OnDutyStarted(IDutyStateEventArgs args)
     {
         deathsThisDuty = 0;
-        SayShared("duty_start");
+        // "Duty commenced" comes right after the loading screen, inside the quiet period that
+        // follows it (and before the party has loaded in), so wait a moment instead of speaking now.
+        QueueShared("duty_start", TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(25));
     }
 
-    private void OnDutyWiped(IDutyStateEventArgs args) => SayShared("wipe");
+    private void OnDutyWiped(IDutyStateEventArgs args) =>
+        QueueShared("wipe", TimeSpan.Zero, TimeSpan.FromSeconds(15));
 
     private void OnDutyCompleted(IDutyStateEventArgs args) =>
-        SayShared(deathsThisDuty == 0 ? "duty_complete_clean" : "duty_complete");
+        QueueShared(deathsThisDuty == 0 ? "duty_complete_clean" : "duty_complete", TimeSpan.Zero, TimeSpan.FromSeconds(15));
+
+    /// <summary>Duty moments waiting to be said: what, not before when, and until when to keep trying.</summary>
+    private readonly List<(string Event, DateTime NotBefore, DateTime Until)> pendingShared = new();
+    private DateTime nextSharedRetry;
+
+    private void QueueShared(string eventName, TimeSpan delay, TimeSpan window)
+    {
+        var now = DateTime.UtcNow;
+        pendingShared.RemoveAll(p => p.Event == eventName);
+        pendingShared.Add((eventName, now + delay, now + delay + window));
+    }
+
+    /// <summary>
+    /// Says queued duty moments once nothing (cutscene, loading screen, another line) is in the way.
+    /// Called every tick outside scenes.
+    /// </summary>
+    private void FlushPendingShared(DateTime now)
+    {
+        if (pendingShared.Count == 0 || Suppressed || now < nextSharedRetry) return;
+        nextSharedRetry = now + TimeSpan.FromSeconds(0.5);
+        for (var i = pendingShared.Count - 1; i >= 0; i--)
+        {
+            var p = pendingShared[i];
+            if (now < p.NotBefore) continue;
+            if (SayShared(p.Event))
+            {
+                pendingShared.RemoveAt(i);
+            }
+            else if (now >= p.Until)
+            {
+                pendingShared.RemoveAt(i);
+                Plugin.Log.Warning($"{p.Event}: nothing played ({speaker.LastDrop ?? "nobody nearby has lines for it"})");
+            }
+        }
+    }
 
     // ---- Polling ----------------------------------------------------------------------
 
@@ -207,6 +245,7 @@ public sealed class EventWatcher : IDisposable
         var members = Members(me).ToList();
         currentMembers = members;
         var byId = actors.ToDictionary(a => a.EntityId);
+        FlushPendingShared(now);
 
         partnersSeen.Clear();
         foreach (var m in members)
@@ -1224,10 +1263,10 @@ public sealed class EventWatcher : IDisposable
     /// Shared events get exactly one speaker. Every player's plugin sorts the same voiced party
     /// members the same way and uses the same server-time window, so they all pick the same one.
     /// </summary>
-    private void SayShared(string eventName, bool healersOnly = false)
+    private bool SayShared(string eventName, bool healersOnly = false)
     {
         var me = Plugin.ObjectTable.LocalPlayer;
-        if (me == null) return;
+        if (me == null) return false;
 
         var candidates = Actors(me)
             .Where(a => a.Pack.LinesFor(a.Job, eventName).Count > 0 || FindVariant(a, eventName) != null)
@@ -1235,11 +1274,11 @@ public sealed class EventWatcher : IDisposable
             .Where(a => WorldState.PoseOf(a.Obj) != WorldState.Pose.Lying) // asleep: someone else speaks
             .OrderBy(a => a.CharacterId, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        if (candidates.Count == 0) return;
+        if (candidates.Count == 0) return false;
 
         var seed = Seed("shared", eventName);
         var chosen = candidates[(int)((ulong)seed % (ulong)candidates.Count)];
-        Say(chosen, eventName);
+        return Say(chosen, eventName);
     }
 
     /// <summary>Same number on every player's machine for the same thing in the same 5-second window.</summary>

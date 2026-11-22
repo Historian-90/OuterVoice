@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.14
+- Fixed: duty start lines were often skipped, because the duty begins right as the loading screen
+  ends, while Outer Voice is still keeping quiet. They now play a couple of seconds later.
+- Wipe and duty complete lines wait out a cutscene or another line instead of being dropped.
+
 ## 0.9.13
 - Fixed: lying down on a couch or bed in some poses wasn't recognised, so idle lines could still play.
   Sitting and swimming are now read the same reliable way.
