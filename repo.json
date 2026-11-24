@@ -3,7 +3,7 @@
     "Author": "CJ",
     "Name": "Outer Voice",
     "InternalName": "OuterVoice",
-    "AssemblyVersion": "0.9.17.0",
+    "AssemblyVersion": "0.9.18.0",
     "Punchline": "Voiced lines for your character, and your friends', when things happen in duties.",
     "Description": "Give your character a voice. Record lines for events like raises, deaths, Kardia swaps, wipes and clears, then share your voice pack with friends: when you're in a party together, each of you hears the other's character speak too.\n\nOnly one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play. Optional: if you subscribe to a friend's Dropbox or OneDrive link, the plugin downloads their pack from that service (and nothing else).",
     "ApplicableVersion": "any",
@@ -17,10 +17,10 @@
     ],
     "DalamudApiLevel": 15,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.17/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.17/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.17/latest.zip",
-    "LastUpdate": 1795379585,
-    "Changelog": "- Fixed: custom events cut off a line that had just started (for example Triplecast over your Burst\n  line) even with Urgent unticked. Now only Urgent custom events can interrupt.\n  If you relied on that (a custom event meant to replace a built-in line), tick Urgent, or make it a\n  variant of the built-in event instead.\n- Lines no longer repeat back to back: the line picked last time for an event is skipped for the\n  next few minutes, and friends still hear the same line as you.\n- The random picks are properly shuffled now; before, they could fall into patterns."
+    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.18/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.18/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.18/latest.zip",
+    "LastUpdate": 1795487838,
+    "Changelog": "- Custom events: new **Who** box on many conditions (You, Your target, Anyone in party, or a specific\n  player), so your character can react to others, e.g. \"When Aereon dies\".\n- New conditions: **Dies**, **Gets raised**, **HP below**, **In combat** and **Weapon drawn**.\n- **+ Or when...** adds another set of conditions; the event plays when any one set is true.\n- Friends need 0.9.18 to understand events that use these."
   }
 ]
