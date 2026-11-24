@@ -14,6 +14,17 @@ public sealed partial class ConfigWindow
          "Time of day", "Place", "State", "Built-in event", "Uses an action", "Player joins the party",
          "Dies", "Gets raised", "HP below", "In combat", "Weapon drawn"];
 
+    /// <summary>The condition dropdown, grouped. (In combat / Weapon drawn are retired: State covers them.)</summary>
+    private static readonly (string Group, ConditionType[] Types)[] ConditionMenu =
+    [
+        ("Actions", [ConditionType.Cast, ConditionType.UseAction, ConditionType.Emote]),
+        ("Status & health", [ConditionType.Status, ConditionType.Moodle, ConditionType.LowHp,
+                             ConditionType.Dies, ConditionType.GetsRaised]),
+        ("Moments", [ConditionType.OpenCoffer, ConditionType.JoinParty, ConditionType.PlayerJoins, ConditionType.Idle]),
+        ("Surroundings", [ConditionType.Weather, ConditionType.TimeOfDay, ConditionType.Place, ConditionType.State]),
+        ("Variants", [ConditionType.BuiltIn]),
+    ];
+
     // Who a condition looks at. "Has status" also has "Given by you" (a status you put on someone).
     private static readonly string[] WhoLabels = ["You", "Your target", "Anyone in party", "A player..."];
     private static readonly string[] StatusWhoLabels = ["You", "Given by you", "Your target", "Anyone in party", "A player..."];
@@ -37,7 +48,7 @@ public sealed partial class ConfigWindow
         "",
         "",
         "Action name, e.g. Swiftcast or Kerachole",
-        "Player name, e.g. Aereon Tucker",
+        "Player name, e.g. Thancred Waters",
         "",
         "",
         "",
@@ -91,6 +102,17 @@ public sealed partial class ConfigWindow
         {
             case ConditionType.OpenCoffer:
             {
+                if (c.Who != ConditionWho.You)
+                {
+                    // Treasure map coffers can't be told apart for other people: regular ones only.
+                    if (c.Value != CustomCondition.CofferRegular)
+                    {
+                        c.Value = CustomCondition.CofferRegular;
+                        Changed();
+                    }
+                    ImGui.TextColored(Muted, "(regular coffers)");
+                    break;
+                }
                 var i = Math.Max(0, Array.IndexOf(CofferValues, c.Value));
                 if (ImGui.Combo("##value", ref i, CofferLabels, CofferLabels.Length))
                 {
@@ -198,7 +220,7 @@ public sealed partial class ConfigWindow
                     ImGui.EndPopup();
                 }
                 InfoMarker("Plays when this player joins the party you're in (or you invite them).\n" +
-                           "The world part (@Siren) is optional.");
+                           "The world part (e.g. @Gilgamesh) is optional.");
                 break;
             }
             case ConditionType.LowHp:
@@ -277,15 +299,23 @@ public sealed partial class ConfigWindow
                 ImGui.SameLine();
             }
 
-            var type = (int)c.Type;
             ImGui.SetNextItemWidth(130);
-            if (ImGui.Combo("##type", ref type, ConditionLabels, ConditionLabels.Length) && (ConditionType)type != c.Type)
+            if (ImGui.BeginCombo("##type", ConditionLabels[(int)c.Type]))
             {
-                c.Type = (ConditionType)type;
-                c.Value = CustomCondition.DefaultValue(c.Type);
-                if (!CustomCondition.SupportsWho(c.Type)) c.Who = ConditionWho.You;
-                if (c.Type != ConditionType.Status) c.Scope = ConditionScope.You;
-                Changed();
+                foreach (var (group, types) in ConditionMenu)
+                {
+                    ImGui.TextColored(Muted, group);
+                    foreach (var t in types)
+                        if (ImGui.Selectable($"  {ConditionLabels[(int)t]}##t{(int)t}", t == c.Type) && t != c.Type)
+                        {
+                            c.Type = t;
+                            c.Value = CustomCondition.DefaultValue(t);
+                            if (!CustomCondition.SupportsWho(t)) c.Who = ConditionWho.You;
+                            if (t != ConditionType.Status) c.Scope = ConditionScope.You;
+                            Changed();
+                        }
+                }
+                ImGui.EndCombo();
             }
 
             ImGui.SameLine();
@@ -427,12 +457,13 @@ public sealed partial class ConfigWindow
         HelpMarker("Groups events on this tab and the Lines tab, e.g. Emotes, RP, Moodles. Blank = Other.\nApplied when you click away or press Enter.");
 
         ImGui.TextUnformatted("When all of these are true:");
-        InfoMarker("Each condition can look at you, your target, anyone in the party, or a specific player\n" +
-                   "(Who box). The line is always said by this pack's character.\n\n" +
+        InfoMarker("Has status, Has Moodle, HP below, Dies, Gets raised and Treasure coffer can look at you, your\n" +
+                   "target, anyone in the party, or a specific player (Who box). The line is always said by this\n" +
+                   "pack's character. Other conditions are about this pack's character.\n\n" +
                    "Starts casting: the cast bar appears. Uses an action: the moment it goes off (instant ones too).\n" +
                    "Has status: a game buff or debuff (Given by you = one you put on someone, like Haima).\n" +
                    "Dies / Gets raised / Treasure coffer / Joining a party: it just happened (within a few seconds).\n" +
-                   "HP below, In combat, Weapon drawn, Weather, Time of day, Place, State: true while it lasts.\n" +
+                   "HP below, Weather, Time of day, Place, State: true while it lasts.\n" +
                    "Has Moodle: a custom status from the Moodles plugin.\n" +
                    "Built-in event: makes this a variant of that event (plays instead of it).\n\n" +
                    "+ Or when... adds another set: the event plays when ANY one set is completely true.\n" +

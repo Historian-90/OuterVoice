@@ -247,36 +247,45 @@ Skill names are looked up from the game in English, so this currently assumes an
 Click **+ New** at the bottom of the Lines page to make your own trigger. It opens on the right with
 its conditions ready to fill in (**Edit trigger** opens them again later). Your event plays a line the moment
 **all** of its conditions are true at the same time. Use **+ Or when...** to add another set of conditions:
-the event then plays when **any one** set is completely true (for example *Aereon dies* **or** *Aereon
+the event then plays when **any one** set is completely true (for example *Thancred dies* **or** *Thancred
 drops below 10% HP*).
 
-Many conditions have a **Who** box: **You**, **Your target**, **Anyone in party**, or **A player...** (type
-a name or pick a friend). The line is always said by your character, so *"When Aereon dies"* can make
-Mika say something about it. Conditions can be:
+Some conditions have a **Who** box: **You**, **Your target**, **Anyone in party**, or **A player...**
+(type a name or pick a friend). The line is always said by your character, so *"When Thancred dies"*
+can make your character say something about it. Conditions, grouped as in the dropdown:
 
+**Actions** (yours)
 - **Starts casting** an action (the moment a cast bar appears)
 - **Uses an action**: the moment an action goes off, so instant skills, oGCD abilities and finished
   casts all count (e.g. `Swiftcast`, `Kerachole`)
-- **Has status**: a game buff or debuff. In the Who box, **Given by you** means one you put on someone
-  else (a party member or your target), like Haima
-- **Dies** / **Gets raised**: the moment someone falls, or gets back up
-- **HP below**: someone's HP is under a percentage you choose
-- **In combat** / **Weapon drawn**
 - **Doing emote**: e.g. `wave` or `/wave`
-- **Has Moodle**: a custom status from the Moodles plugin (needs Moodles; friends' Moodles count
+
+**Status & health** (Who box)
+- **Has status**: a game buff or debuff. **Given by you** in the Who box means one you put on someone
+  else (a party member or your target), like Haima
+- **Has Moodle**: a custom status from the Moodles plugin (needs Moodles; other people's Moodles count
   when they're synced to you)
-- **Treasure coffer**: you just opened a coffer (any, regular, or treasure map)
-- **Weather**: the current weather is of a kind (Rain, Snow, Fog...)
-- **Idle**: you've been standing still (out of combat and duties) for at least N minutes
+- **HP below**: HP is under a percentage you choose
+- **Dies** / **Gets raised**: the moment someone falls, or gets back up
+
+**Moments**
+- **Treasure coffer**: a coffer was just opened (yours: any, regular or treasure map; others' (Who box):
+  regular coffers)
 - **Joining a party**: you just joined someone's party
-- **Player joins the party**: a specific player (e.g. `Aereon Tucker`, world optional) joins the party
+- **Player joins the party**: a specific player (e.g. `Thancred Waters`, world optional) joins the party
   you're in
+- **Idle**: you've been standing still (out of combat and duties) for at least N minutes
+
+**Surroundings**
+- **Weather**: the current weather is of a kind (Rain, Snow, Fog...)
 - **Time of day**: Eorzea time is in any of the periods you tick (Dawn, Morning, Day, Dusk, Evening, Night)
 - **Place**: you're in any of the places you tick (City or a specific city, Field, Inn, Residential
   area, Home, House, Apartment, Gold Saucer, Island Sanctuary, Duty, or a registered place)
 - **State**: you're doing any of the things you tick (Swimming, Diving, Mounted, Flying, Crafting,
   Gathering, Fishing, Performing, Weapon drawn, In combat). For friends' packs, Diving, Flying and
   Fishing can't be seen.
+
+**Variants**
 - **Built-in event**: makes it a *variant* (below)
 
 ### Variants

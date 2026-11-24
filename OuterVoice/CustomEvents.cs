@@ -117,9 +117,8 @@ public class CustomCondition
     public string WhoName { get; set; } = string.Empty;
 
     /// <summary>Condition types that can look at someone other than the pack's own character.</summary>
-    public static bool SupportsWho(ConditionType type) => type is ConditionType.Cast or ConditionType.Status
-        or ConditionType.Emote or ConditionType.UseAction or ConditionType.Dies or ConditionType.GetsRaised
-        or ConditionType.LowHp or ConditionType.InCombat or ConditionType.WeaponDrawn;
+    public static bool SupportsWho(ConditionType type) => type is ConditionType.Status or ConditionType.Moodle
+        or ConditionType.OpenCoffer or ConditionType.Dies or ConditionType.GetsRaised or ConditionType.LowHp;
 
     /// <summary>Condition types that need no value (just "it happens").</summary>
     public static bool NoValue(ConditionType type) => type is ConditionType.JoinParty or ConditionType.Dies
@@ -215,10 +214,9 @@ public class CustomEvent
             var who = WhoText(c);
             return c.Type switch
             {
-                ConditionType.Cast => $"{who} starts casting {Quote(c.Value)}",
                 ConditionType.Status => $"{who} has {Quote(c.Value)}",
-                ConditionType.Emote => $"{who} is doing /{c.Value.TrimStart('/')}",
-                ConditionType.UseAction => $"{who} uses {Quote(c.Value)}",
+                ConditionType.Moodle => $"{who} has Moodle {Quote(c.Value)}",
+                ConditionType.OpenCoffer => $"{who} opens a coffer",
                 _ => DescribeBody(c, who),
             };
         }

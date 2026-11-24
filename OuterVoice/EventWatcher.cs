@@ -343,8 +343,9 @@ public sealed class EventWatcher : IDisposable
         foreach (var key in partnerHolder.Keys.Where(k => !partnersSeen.Contains(k)).ToList())
             partnerHolder.Remove(key);
 
+        var watched = TrackLives(actors, now);
         CheckChests(actors, now);
-        NoteActionsUsed(TrackLives(actors, now), now);
+        NoteActionsUsed(watched, now);
 
         foreach (var actor in actors)
         {
@@ -623,6 +624,10 @@ public sealed class EventWatcher : IDisposable
         foreach (var a in actors)
             if (a.Obj is { TargetObjectId: not 0 and not 0xE0000000 } o)
                 lastTarget[a.EntityId] = (o.TargetObjectId, now);
+        // Party members, targets and named players too, for "someone else opens a coffer".
+        foreach (var c in trackedChars)
+            if (c.TargetObjectId is not 0 and not 0xE0000000)
+                lastTarget[c.EntityId] = (c.TargetObjectId, now);
 
         var seen = new HashSet<ulong>();
         foreach (var obj in Plugin.ObjectTable)
@@ -642,10 +647,20 @@ public sealed class EventWatcher : IDisposable
                     a.Obj != null &&
                     lastTarget.TryGetValue(a.EntityId, out var lt) && (lt.Target == id || (obj.EntityId != 0 && (uint)lt.Target == obj.EntityId)) && now - lt.At <= ChestTargetMemory &&
                     System.Numerics.Vector3.Distance(a.Obj.Position, obj.Position) <= ChestReach);
+                var map = t->CofferKind == FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureKind.TreasureHunt;
                 if (opener != null)
                 {
-                    var map = t->CofferKind == FFXIVClientStructs.FFXIV.Client.Game.Object.Treasure.TreasureKind.TreasureHunt;
                     Moment(opener, map ? "chest_map" : "chest_open", map ? MomentCofferMap : MomentCoffer);
+                }
+                else if (!map)
+                {
+                    // Someone without a pack (or not voiced here) opened it: only a moment, for
+                    // custom events about others ("Anyone in party" / a player opens a coffer).
+                    var other = trackedChars.FirstOrDefault(c =>
+                        lastTarget.TryGetValue(c.EntityId, out var lt) &&
+                        (lt.Target == id || (obj.EntityId != 0 && (uint)lt.Target == obj.EntityId)) && now - lt.At <= ChestTargetMemory &&
+                        System.Numerics.Vector3.Distance(c.Position, obj.Position) <= ChestReach);
+                    if (other != null) moments[(other.EntityId, MomentCoffer)] = now;
                 }
             }
             chestOpened[id] = open;
@@ -1136,6 +1151,9 @@ public sealed class EventWatcher : IDisposable
 
     /// <summary>Last seen HP per character we keep an eye on (for Dies / Gets raised).</summary>
     private readonly Dictionary<uint, uint> lifeHp = new();
+
+    /// <summary>Everyone TrackLives watched this tick (voiced characters, party, targets, named players).</summary>
+    private List<IBattleChara> trackedChars = new();
     private readonly HashSet<uint> lifeSeen = new();
     private const string MomentDied = "died";
     private const string MomentRevived = "revived";
@@ -1186,10 +1204,9 @@ public sealed class EventWatcher : IDisposable
 
     private bool SubjectTrue(IBattleChara sub, CustomCondition c) => c.Type switch
     {
-        ConditionType.Cast => sub.IsCasting && NameMatches(ActionName(sub.CastActionId), c.Value),
         ConditionType.Status => sub.StatusList.Any(st => NameMatches(StatusName(st.StatusId), c.Value)),
-        ConditionType.Emote => EmoteNamesOf(sub).Any(n => NameMatches(n, c.Value)),
-        ConditionType.UseAction => c.Value.Length > 0 && RecentFor(sub.EntityId, ActionMoment(c.Value)),
+        ConditionType.Moodle => MoodlesIpc.TitlesOn(sub.Address).Any(t => NameMatches(t, MoodlesIpc.Clean(c.Value))),
+        ConditionType.OpenCoffer => RecentFor(sub.EntityId, MomentCoffer), // others: regular coffers only
         ConditionType.Dies => RecentFor(sub.EntityId, MomentDied),
         ConditionType.GetsRaised => RecentFor(sub.EntityId, MomentRevived),
         ConditionType.LowHp => sub.MaxHp > 0 && sub.CurrentHp > 0 &&
@@ -1209,9 +1226,11 @@ public sealed class EventWatcher : IDisposable
     private HashSet<uint> TrackLives(List<Actor> actors, DateTime now)
     {
         var watch = new HashSet<uint>();
+        var chars = new List<IBattleChara>();
         void Add(IBattleChara? b)
         {
             if (b == null || b.EntityId == 0 || b.EntityId == 0xE0000000 || !watch.Add(b.EntityId)) return;
+            chars.Add(b);
             var hp = b.CurrentHp;
             if (lifeHp.TryGetValue(b.EntityId, out var prev))
             {
@@ -1236,6 +1255,7 @@ public sealed class EventWatcher : IDisposable
         // Forget anyone out of sight, so coming back isn't read as dying or getting up.
         foreach (var id in lifeHp.Keys.Where(id => !watch.Contains(id)).ToList())
             lifeHp.Remove(id);
+        trackedChars = chars;
         return watch;
     }
 

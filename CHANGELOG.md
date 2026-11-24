@@ -1,8 +1,17 @@
 # Changelog
 
+## 0.9.19
+- Custom events: the Who box (react to your target, the party or a specific player) is now on
+  **Has status**, **Has Moodle**, **Treasure coffer** (regular coffers), **Dies**, **Gets raised** and
+  **HP below**. Starts casting, Uses an action and Doing emote are about your own character again.
+- **In combat** and **Weapon drawn** are gone from the list; the **State** condition already covers
+  them. Events that already use them keep working.
+- The condition dropdown is grouped: Actions, Status & health, Moments, Surroundings, Variants.
+- Example names in the plugin and README now use Thancred.
+
 ## 0.9.18
 - Custom events: new **Who** box on many conditions (You, Your target, Anyone in party, or a specific
-  player), so your character can react to others, e.g. "When Aereon dies".
+  player), so your character can react to others, e.g. "When Thancred dies".
 - New conditions: **Dies**, **Gets raised**, **HP below**, **In combat** and **Weapon drawn**.
 - **+ Or when...** adds another set of conditions; the event plays when any one set is true.
 - Friends need 0.9.18 to understand events that use these.
