@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.18
+- Custom events: new **Who** box on many conditions (You, Your target, Anyone in party, or a specific
+  player), so your character can react to others, e.g. "When Aereon dies".
+- New conditions: **Dies**, **Gets raised**, **HP below**, **In combat** and **Weapon drawn**.
+- **+ Or when...** adds another set of conditions; the event plays when any one set is true.
+- Friends need 0.9.18 to understand events that use these.
+
 ## 0.9.17
 - Fixed: custom events cut off a line that had just started (for example Triplecast over your Burst
   line) even with Urgent unticked. Now only Urgent custom events can interrupt.

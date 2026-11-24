@@ -246,13 +246,22 @@ Skill names are looked up from the game in English, so this currently assumes an
 
 Click **+ New** at the bottom of the Lines page to make your own trigger. It opens on the right with
 its conditions ready to fill in (**Edit trigger** opens them again later). Your event plays a line the moment
-**all** of its conditions are true at the same time. Conditions can be:
+**all** of its conditions are true at the same time. Use **+ Or when...** to add another set of conditions:
+the event then plays when **any one** set is completely true (for example *Aereon dies* **or** *Aereon
+drops below 10% HP*).
+
+Many conditions have a **Who** box: **You**, **Your target**, **Anyone in party**, or **A player...** (type
+a name or pick a friend). The line is always said by your character, so *"When Aereon dies"* can make
+Mika say something about it. Conditions can be:
 
 - **Starts casting** an action (the moment a cast bar appears)
 - **Uses an action**: the moment an action goes off, so instant skills, oGCD abilities and finished
   casts all count (e.g. `Swiftcast`, `Kerachole`)
-- **Has status**: a game buff or debuff on you. Pick **Player (You)** for a status on you, or **Target** for one you
-  put on someone else (a party member or your target), like Haima
+- **Has status**: a game buff or debuff. In the Who box, **Given by you** means one you put on someone
+  else (a party member or your target), like Haima
+- **Dies** / **Gets raised**: the moment someone falls, or gets back up
+- **HP below**: someone's HP is under a percentage you choose
+- **In combat** / **Weapon drawn**
 - **Doing emote**: e.g. `wave` or `/wave`
 - **Has Moodle**: a custom status from the Moodles plugin (needs Moodles; friends' Moodles count
   when they're synced to you)

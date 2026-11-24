@@ -56,6 +56,37 @@ public enum ConditionType
     /// A specific player joins your party. Value: their name, "First Last" or "First Last@World".
     /// </summary>
     PlayerJoins,
+
+    /// <summary>Someone dies (HP drops to 0). Usually used with Who: a party member or a player.</summary>
+    Dies,
+
+    /// <summary>Someone gets back up after dying (raised or revived).</summary>
+    GetsRaised,
+
+    /// <summary>Someone's HP is below this percentage (value: 1-99), but not dead.</summary>
+    LowHp,
+
+    /// <summary>Someone is in combat.</summary>
+    InCombat,
+
+    /// <summary>Someone has their weapon drawn.</summary>
+    WeaponDrawn,
+}
+
+/// <summary>Who a condition looks at. The line is still said by the pack's own character.</summary>
+public enum ConditionWho
+{
+    /// <summary>The pack's own character (you, or the friend whose pack it is).</summary>
+    You,
+
+    /// <summary>Whoever that character has targeted.</summary>
+    Target,
+
+    /// <summary>Anyone else in the party (true if any one of them matches).</summary>
+    Party,
+
+    /// <summary>A specific player, by name (see <see cref="CustomCondition.WhoName"/>).</summary>
+    Player,
 }
 
 /// <summary>Who a "Has status" condition looks at.</summary>
@@ -79,13 +110,34 @@ public class CustomCondition
     /// <summary>For "Has status": on you, or on someone you gave it to.</summary>
     public ConditionScope Scope { get; set; } = ConditionScope.You;
 
+    /// <summary>Who the condition looks at (for the types where that makes sense).</summary>
+    public ConditionWho Who { get; set; } = ConditionWho.You;
+
+    /// <summary>For Who = Player: "First Last" or "First Last@World".</summary>
+    public string WhoName { get; set; } = string.Empty;
+
+    /// <summary>Condition types that can look at someone other than the pack's own character.</summary>
+    public static bool SupportsWho(ConditionType type) => type is ConditionType.Cast or ConditionType.Status
+        or ConditionType.Emote or ConditionType.UseAction or ConditionType.Dies or ConditionType.GetsRaised
+        or ConditionType.LowHp or ConditionType.InCombat or ConditionType.WeaponDrawn;
+
+    /// <summary>Condition types that need no value (just "it happens").</summary>
+    public static bool NoValue(ConditionType type) => type is ConditionType.JoinParty or ConditionType.Dies
+        or ConditionType.GetsRaised or ConditionType.InCombat or ConditionType.WeaponDrawn;
+
+    [Newtonsoft.Json.JsonIgnore]
+    public bool IsComplete => (NoValue(Type) || !string.IsNullOrWhiteSpace(Value)) &&
+                              (Who != ConditionWho.Player || !string.IsNullOrWhiteSpace(WhoName));
+
     /// <summary>The value a newly picked condition type starts with (empty means "type something").</summary>
     public static string DefaultValue(ConditionType type) => type switch
     {
         ConditionType.OpenCoffer => CofferAny,
         ConditionType.Weather => "Rain",
         ConditionType.Idle => "5",
-        ConditionType.JoinParty => "yes",
+        ConditionType.JoinParty or ConditionType.Dies or ConditionType.GetsRaised
+            or ConditionType.InCombat or ConditionType.WeaponDrawn => "yes",
+        ConditionType.LowHp => "25",
         ConditionType.TimeOfDay => "Night",
         ConditionType.Place => "City",
         ConditionType.State => "Swimming",
@@ -112,6 +164,19 @@ public class CustomEvent
     public string Id { get; set; } = "custom_" + Guid.NewGuid().ToString("N")[..8];
     public string Name { get; set; } = "New event";
     public List<CustomCondition> Conditions { get; set; } = new();
+
+    /// <summary>
+    /// "Or when..." blocks. The event plays when all conditions of any one block are true
+    /// (<see cref="Conditions"/> is the first block).
+    /// </summary>
+    public List<List<CustomCondition>> OrBlocks { get; set; } = new();
+
+    /// <summary>Every block: the first one, then the "or" ones.</summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public IEnumerable<List<CustomCondition>> Blocks => new[] { Conditions }.Concat(OrBlocks);
+
+    [Newtonsoft.Json.JsonIgnore]
+    public IEnumerable<CustomCondition> AllConditions => Blocks.SelectMany(b => b);
     public int CooldownSeconds { get; set; } = 30;
     public int Priority { get; set; } = 2;
 
@@ -123,7 +188,7 @@ public class CustomEvent
 
     public string CategoryOrDefault => string.IsNullOrWhiteSpace(Category) ? "Other" : Category.Trim();
 
-    public bool IsUsable => Conditions.Count > 0 && Conditions.All(c => !string.IsNullOrWhiteSpace(c.Value));
+    public bool IsUsable => Blocks.Any(b => b.Count > 0 && b.All(c => c.IsComplete));
 
     /// <summary>The built-in event this one is a variant of, if it has a "Built-in event" condition.</summary>
     public string? VariantOf => Conditions.FirstOrDefault(c => c.Type == ConditionType.BuiltIn)?.Value is { Length: > 0 } v ? v : null;
@@ -131,10 +196,42 @@ public class CustomEvent
     public string Summary =>
         Conditions.Count == 0
             ? "No conditions yet: click Edit trigger."
-            : "When " + string.Join(" + ", Conditions.Select(Describe));
+            : "When " + string.Join(", or when ",
+                Blocks.Where(b => b.Count > 0).Select(b => string.Join(" + ", b.Select(Describe))));
 
-    public static string Describe(CustomCondition c) => c.Type switch
+    /// <summary>"you", "your target", "someone in the party" or the player's name.</summary>
+    public static string WhoText(CustomCondition c) => c.Who switch
     {
+        ConditionWho.Target => "your target",
+        ConditionWho.Party => "someone in the party",
+        ConditionWho.Player => c.WhoName.Length > 0 ? c.WhoName : "?",
+        _ => "you",
+    };
+
+    public static string Describe(CustomCondition c)
+    {
+        if (c.Who != ConditionWho.You && CustomCondition.SupportsWho(c.Type))
+        {
+            var who = WhoText(c);
+            return c.Type switch
+            {
+                ConditionType.Cast => $"{who} starts casting {Quote(c.Value)}",
+                ConditionType.Status => $"{who} has {Quote(c.Value)}",
+                ConditionType.Emote => $"{who} is doing /{c.Value.TrimStart('/')}",
+                ConditionType.UseAction => $"{who} uses {Quote(c.Value)}",
+                _ => DescribeBody(c, who),
+            };
+        }
+        return DescribeBody(c, "you");
+    }
+
+    private static string DescribeBody(CustomCondition c, string who) => c.Type switch
+    {
+        ConditionType.Dies => $"{who} {(who == "you" ? "die" : "dies")}",
+        ConditionType.GetsRaised => $"{who} {(who == "you" ? "get" : "gets")} raised",
+        ConditionType.LowHp => $"{who} {(who == "you" ? "drop" : "drops")} below {c.Value}% HP",
+        ConditionType.InCombat => $"{who} {(who == "you" ? "are" : "is")} in combat",
+        ConditionType.WeaponDrawn => $"{who} {(who == "you" ? "have" : "has")} a weapon drawn",
         ConditionType.Cast => $"starting to cast {Quote(c.Value)}",
         ConditionType.Status => c.Scope == ConditionScope.Target
             ? $"you give {Quote(c.Value)} to someone"

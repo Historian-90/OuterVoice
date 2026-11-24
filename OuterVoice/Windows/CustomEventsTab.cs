@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
@@ -10,9 +11,13 @@ public sealed partial class ConfigWindow
 {
     private static readonly string[] ConditionLabels =
         ["Starts casting", "Has status", "Doing emote", "Has Moodle", "Treasure coffer", "Weather", "Idle", "Joining a party",
-         "Time of day", "Place", "State", "Built-in event", "Uses an action", "Player joins the party"];
+         "Time of day", "Place", "State", "Built-in event", "Uses an action", "Player joins the party",
+         "Dies", "Gets raised", "HP below", "In combat", "Weapon drawn"];
 
-    private static readonly string[] ScopeLabels = ["Player (You)", "Target"];
+    // Who a condition looks at. "Has status" also has "Given by you" (a status you put on someone).
+    private static readonly string[] WhoLabels = ["You", "Your target", "Anyone in party", "A player..."];
+    private static readonly string[] StatusWhoLabels = ["You", "Given by you", "Your target", "Anyone in party", "A player..."];
+
 
     private static readonly string[] CofferValues = [CustomCondition.CofferAny, CustomCondition.CofferRegular, CustomCondition.CofferMap];
     private static readonly string[] CofferLabels = ["Any coffer", "Regular coffer", "Treasure map coffer"];
@@ -33,6 +38,11 @@ public sealed partial class ConfigWindow
         "",
         "Action name, e.g. Swiftcast or Kerachole",
         "Player name, e.g. Aereon Tucker",
+        "",
+        "",
+        "",
+        "",
+        "",
     ];
 
     private string customSearch = string.Empty;
@@ -191,6 +201,33 @@ public sealed partial class ConfigWindow
                            "The world part (@Siren) is optional.");
                 break;
             }
+            case ConditionType.LowHp:
+            {
+                var pct = int.TryParse(c.Value, out var p) ? Math.Clamp(p, 1, 99) : 25;
+                ImGui.SetNextItemWidth(180);
+                if (ImGui.SliderInt("##value", ref pct, 1, 99, "below %d%% HP"))
+                {
+                    c.Value = pct.ToString();
+                    Changed();
+                }
+                break;
+            }
+            case ConditionType.Dies:
+            case ConditionType.GetsRaised:
+            case ConditionType.InCombat:
+            case ConditionType.WeaponDrawn:
+                if (c.Value.Length == 0)
+                {
+                    c.Value = "yes";
+                    Changed();
+                }
+                ImGui.TextColored(Muted, c.Type switch
+                {
+                    ConditionType.Dies => "(the moment they fall)",
+                    ConditionType.GetsRaised => "(the moment they're back up)",
+                    _ => "(for as long as it lasts)",
+                });
+                break;
             case ConditionType.JoinParty:
                 if (c.Value.Length == 0)
                 {
@@ -212,6 +249,128 @@ public sealed partial class ConfigWindow
         }
     }
     private readonly System.Collections.Generic.Dictionary<string, string> categoryDrafts = new();
+
+    /// <summary>One set of conditions ("all of these are true"), with Remove and + Add condition.</summary>
+    private void DrawConditionBlock(List<CustomCondition> block, string id)
+    {
+        ImGui.PushID(id);
+        CustomCondition? removeCondition = null;
+        for (var i = 0; i < block.Count; i++)
+        {
+            var c = block[i];
+            ImGui.PushID(i);
+
+            if (i > 0)
+            {
+                ImGui.TextColored(Muted, "and");
+                ImGui.SameLine();
+            }
+            else
+            {
+                ImGui.Dummy(new Vector2(ImGui.CalcTextSize("and").X, 0));
+                ImGui.SameLine();
+            }
+
+            if (CustomCondition.SupportsWho(c.Type))
+            {
+                DrawWho(c);
+                ImGui.SameLine();
+            }
+
+            var type = (int)c.Type;
+            ImGui.SetNextItemWidth(130);
+            if (ImGui.Combo("##type", ref type, ConditionLabels, ConditionLabels.Length) && (ConditionType)type != c.Type)
+            {
+                c.Type = (ConditionType)type;
+                c.Value = CustomCondition.DefaultValue(c.Type);
+                if (!CustomCondition.SupportsWho(c.Type)) c.Who = ConditionWho.You;
+                if (c.Type != ConditionType.Status) c.Scope = ConditionScope.You;
+                Changed();
+            }
+
+            ImGui.SameLine();
+            DrawConditionValue(c);
+
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Remove"))
+                removeCondition = c;
+
+            ImGui.PopID();
+        }
+
+        if (removeCondition != null)
+        {
+            block.Remove(removeCondition);
+            Changed();
+        }
+
+        if (ImGui.SmallButton("+ Add condition"))
+        {
+            block.Add(new CustomCondition());
+            Changed();
+        }
+        ImGui.PopID();
+    }
+
+    /// <summary>The Who box (and the player name for "A player...").</summary>
+    private void DrawWho(CustomCondition c)
+    {
+        var isStatus = c.Type == ConditionType.Status;
+        var labels = isStatus ? StatusWhoLabels : WhoLabels;
+        // Map (Who, Scope) to the list index: status lists "Given by you" second.
+        var index = c.Who switch
+        {
+            ConditionWho.You => isStatus && c.Scope == ConditionScope.Target ? 1 : 0,
+            ConditionWho.Target => isStatus ? 2 : 1,
+            ConditionWho.Party => isStatus ? 3 : 2,
+            _ => isStatus ? 4 : 3,
+        };
+        ImGui.SetNextItemWidth(125);
+        if (ImGui.Combo("##who", ref index, labels, labels.Length))
+        {
+            var i = isStatus && index >= 1 ? index - 1 : index; // skip "Given by you"
+            c.Scope = isStatus && index == 1 ? ConditionScope.Target : ConditionScope.You;
+            c.Who = isStatus && index == 1 ? ConditionWho.You : i switch
+            {
+                1 => ConditionWho.Target,
+                2 => ConditionWho.Party,
+                3 => ConditionWho.Player,
+                _ => ConditionWho.You,
+            };
+            Changed();
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Who this condition looks at. The line is always said by this pack's character.\n" +
+                             "Anyone in party: true if any one party member matches.");
+
+        if (c.Who != ConditionWho.Player) return;
+        ImGui.SameLine();
+        var name = c.WhoName;
+        ImGui.SetNextItemWidth(140);
+        if (ImGui.InputTextWithHint("##whoname", "First Last", ref name, 64))
+        {
+            c.WhoName = name;
+            Changed();
+        }
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Pick##whopick"))
+            ImGui.OpenPopup("##whopicker");
+        if (ImGui.BeginPopup("##whopicker"))
+        {
+            var names = plugin.Configuration.Subscriptions.Select(s => s.Character)
+                .Concat(Plugin.PartyList.Select(m => $"{m.Name.TextValue}@{m.World.ValueNullable?.Name.ExtractText()}"))
+                .Where(n => !string.IsNullOrWhiteSpace(n) && !n.EndsWith('@'))
+                .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(n => n).ToList();
+            if (names.Count == 0) ImGui.TextColored(Muted, "No friends or party members to pick from.");
+            foreach (var n in names)
+                if (ImGui.Selectable(n))
+                {
+                    c.WhoName = n;
+                    Changed();
+                }
+            ImGui.EndPopup();
+        }
+    }
 
     /// <summary>Draws one custom event's editor. Returns true if the user asked to delete it.</summary>
     private bool DrawCustomEvent(VoicePack pack, CustomEvent ev)
@@ -268,80 +427,45 @@ public sealed partial class ConfigWindow
         HelpMarker("Groups events on this tab and the Lines tab, e.g. Emotes, RP, Moodles. Blank = Other.\nApplied when you click away or press Enter.");
 
         ImGui.TextUnformatted("When all of these are true:");
-        InfoMarker("Casting: you're casting an action with a cast bar (instant actions can't be seen).\n" +
-                   "Has status: a regular game buff or debuff on you, from anyone.\n" +
-                   "Doing emote: the emote you're currently performing.\n" +
-                   "Has Moodle: a custom status from the Moodles plugin (needs Moodles installed;\n" +
-                   "  friends' Moodles only show up if they're synced to you).\n" +
-                   "Treasure coffer / Joining a party: it just happened (within a few seconds).\n" +
-                   "Weather / Time of day / Place / State: true for as long as it lasts.\n" +
-                   "Idle: standing still that long, out of combat and duties.\n" +
+        InfoMarker("Each condition can look at you, your target, anyone in the party, or a specific player\n" +
+                   "(Who box). The line is always said by this pack's character.\n\n" +
+                   "Starts casting: the cast bar appears. Uses an action: the moment it goes off (instant ones too).\n" +
+                   "Has status: a game buff or debuff (Given by you = one you put on someone, like Haima).\n" +
+                   "Dies / Gets raised / Treasure coffer / Joining a party: it just happened (within a few seconds).\n" +
+                   "HP below, In combat, Weapon drawn, Weather, Time of day, Place, State: true while it lasts.\n" +
+                   "Has Moodle: a custom status from the Moodles plugin.\n" +
                    "Built-in event: makes this a variant of that event (plays instead of it).\n\n" +
-                   "Names must match what the game (or Moodles) shows; capitals don't matter.");
+                   "+ Or when... adds another set: the event plays when ANY one set is completely true.\n" +
+                   "Names must match what the game shows; capitals don't matter.");
 
-        CustomCondition? removeCondition = null;
-        for (var i = 0; i < ev.Conditions.Count; i++)
+        DrawConditionBlock(ev.Conditions, "b0");
+
+        List<CustomCondition>? removeBlock = null;
+        for (var b = 0; b < ev.OrBlocks.Count; b++)
         {
-            var c = ev.Conditions[i];
-            ImGui.PushID(i);
-
-            if (i > 0)
-            {
-                ImGui.TextColored(Muted, "and");
-                ImGui.SameLine();
-            }
-            else
-            {
-                ImGui.Dummy(new Vector2(ImGui.CalcTextSize("and").X, 0));
-                ImGui.SameLine();
-            }
-
-            if (c.Type == ConditionType.Status)
-            {
-                var scope = (int)c.Scope;
-                ImGui.SetNextItemWidth(110);
-                if (ImGui.Combo("##scope", ref scope, ScopeLabels, ScopeLabels.Length))
-                {
-                    c.Scope = (ConditionScope)scope;
-                    Changed();
-                }
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Player (You): the status is on you, from anyone.\n" +
-                                     "Target: you put it on someone else (a party member, or whoever you're targeting).\n" +
-                                     "Use Target for buffs you give others, like Haima.");
-                ImGui.SameLine();
-            }
-
-            var type = (int)c.Type;
-            ImGui.SetNextItemWidth(120);
-            if (ImGui.Combo("##type", ref type, ConditionLabels, ConditionLabels.Length) && (ConditionType)type != c.Type)
-            {
-                c.Type = (ConditionType)type;
-                c.Value = CustomCondition.DefaultValue(c.Type);
-                Changed();
-            }
-
+            ImGui.Spacing();
+            ImGui.TextColored(Accent, "OR");
             ImGui.SameLine();
-            DrawConditionValue(c);
-
+            ImGui.TextUnformatted("when all of these are true:");
             ImGui.SameLine();
-            if (ImGui.SmallButton("Remove"))
-                removeCondition = c;
-
-            ImGui.PopID();
+            if (ImGui.SmallButton($"Remove this set##rb{b}"))
+                removeBlock = ev.OrBlocks[b];
+            DrawConditionBlock(ev.OrBlocks[b], $"b{b + 1}");
         }
-
-        if (removeCondition != null)
+        if (removeBlock != null)
         {
-            ev.Conditions.Remove(removeCondition);
+            ev.OrBlocks.Remove(removeBlock);
             Changed();
         }
 
-        if (ImGui.SmallButton("+ Add condition"))
+        if (ImGui.SmallButton("+ Or when..."))
         {
-            ev.Conditions.Add(new CustomCondition());
+            ev.OrBlocks.Add(new List<CustomCondition> { new() });
             Changed();
         }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Adds another set of conditions. The event plays when any one set is completely true.");
+        ImGui.Spacing();
 
         var cd = ev.CooldownSeconds;
         ImGui.SetNextItemWidth(220);

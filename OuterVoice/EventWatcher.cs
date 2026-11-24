@@ -344,7 +344,7 @@ public sealed class EventWatcher : IDisposable
             partnerHolder.Remove(key);
 
         CheckChests(actors, now);
-        NoteActionsUsed(byId, now);
+        NoteActionsUsed(TrackLives(actors, now), now);
 
         foreach (var actor in actors)
         {
@@ -517,15 +517,15 @@ public sealed class EventWatcher : IDisposable
     private static string JoinedMoment(string player) => "joined:" + player.Trim().ToLowerInvariant();
 
     /// <summary>Records actions that just went off (instant or cast) for "Uses an action".</summary>
-    private void NoteActionsUsed(Dictionary<uint, Actor> byId, DateTime now)
+    private void NoteActionsUsed(HashSet<uint> watch, DateTime now)
     {
         var watcher = Plugin.Instance.Actions;
         if (!watcher.Working) return;
-        if (watcher.Watching.Count != byId.Count || !byId.Keys.All(watcher.Watching.Contains))
-            watcher.Watching = new HashSet<uint>(byId.Keys);
+        if (!watcher.Watching.SetEquals(watch))
+            watcher.Watching = watch;
         foreach (var (caster, actionId) in watcher.Drain())
         {
-            if (!byId.ContainsKey(caster)) continue;
+            if (!watch.Contains(caster)) continue;
             var name = ActionName(actionId);
             if (name.Length > 0) moments[(caster, ActionMoment(name))] = now;
         }
@@ -1070,10 +1070,32 @@ public sealed class EventWatcher : IDisposable
 
     /// <summary>Plays a custom event's line the moment all of its conditions are true together.</summary>
     /// <summary>Whether one custom condition is true for this character right now.</summary>
+    /// <summary>True when every condition of at least one block (the first, or an "or" block) is true.</summary>
+    private bool BlocksTrue(Actor actor, CustomEvent ev, ref IReadOnlyList<string>? moodles)
+    {
+        foreach (var block in ev.Blocks)
+        {
+            if (block.Count == 0 || !block.All(c => c.IsComplete)) continue;
+            var all = true;
+            foreach (var c in block)
+                if (!ConditionTrue(actor, c, ref moodles)) { all = false; break; }
+            if (all) return true;
+        }
+        return false;
+    }
+
     private bool ConditionTrue(Actor actor, CustomCondition c, ref IReadOnlyList<string>? moodles)
     {
         var isMe = actor.EntityId == Plugin.ObjectTable.LocalPlayer?.EntityId;
         var obj = actor.Obj;
+
+        // About someone else (your target, the party, a named player): true if any of them matches.
+        if (CustomCondition.SupportsWho(c.Type) && c.Who != ConditionWho.You)
+            return SubjectsFor(actor, c).Any(sub => SubjectTrue(sub, c));
+        if (c.Type is ConditionType.Dies or ConditionType.GetsRaised or ConditionType.LowHp
+                   or ConditionType.InCombat or ConditionType.WeaponDrawn)
+            return obj != null && SubjectTrue(obj, c);
+
         switch (c.Type)
         {
             case ConditionType.BuiltIn: return true; // checked by whoever is saying the built-in line
@@ -1109,6 +1131,114 @@ public sealed class EventWatcher : IDisposable
         };
     }
 
+
+    // ---- Conditions about other characters ----------------------------------------------------
+
+    /// <summary>Last seen HP per character we keep an eye on (for Dies / Gets raised).</summary>
+    private readonly Dictionary<uint, uint> lifeHp = new();
+    private readonly HashSet<uint> lifeSeen = new();
+    private const string MomentDied = "died";
+    private const string MomentRevived = "revived";
+
+    private bool RecentFor(uint entityId, string kind) =>
+        moments.TryGetValue((entityId, kind), out var at) && DateTime.UtcNow - at <= MomentWindow;
+
+    /// <summary>The characters a condition with a Who other than You looks at, as this actor sees them.</summary>
+    private IEnumerable<IBattleChara> SubjectsFor(Actor actor, CustomCondition c)
+    {
+        switch (c.Who)
+        {
+            case ConditionWho.Target:
+                if (actor.Obj?.TargetObject is IBattleChara t) yield return t;
+                break;
+            case ConditionWho.Party:
+                foreach (var m in currentMembers)
+                    if (m.Present && m.EntityId != actor.EntityId && ObjectById(m.EntityId) is { } o)
+                        yield return o;
+                break;
+            case ConditionWho.Player:
+                if (FindPlayer(c.WhoName) is { } p) yield return p;
+                break;
+        }
+    }
+
+    private static IBattleChara? ObjectById(uint entityId) =>
+        entityId == 0 ? null : Plugin.ObjectTable.FirstOrDefault(o => o.EntityId == entityId) as IBattleChara;
+
+    /// <summary>A player on screen by "First Last" or "First Last@World" (capitals don't matter).</summary>
+    private static IPlayerCharacter? FindPlayer(string who)
+    {
+        who = who.Trim();
+        if (who.Length == 0) return null;
+        var at = who.IndexOf('@');
+        var name = at > 0 ? who[..at].Trim() : who;
+        var world = at > 0 ? who[(at + 1)..].Trim() : null;
+        foreach (var o in Plugin.ObjectTable)
+        {
+            if (o is not IPlayerCharacter p) continue;
+            if (!string.Equals(p.Name.TextValue, name, StringComparison.OrdinalIgnoreCase)) continue;
+            if (world != null && !string.Equals(p.HomeWorld.ValueNullable?.Name.ExtractText(), world,
+                                                StringComparison.OrdinalIgnoreCase)) continue;
+            return p;
+        }
+        return null;
+    }
+
+    private bool SubjectTrue(IBattleChara sub, CustomCondition c) => c.Type switch
+    {
+        ConditionType.Cast => sub.IsCasting && NameMatches(ActionName(sub.CastActionId), c.Value),
+        ConditionType.Status => sub.StatusList.Any(st => NameMatches(StatusName(st.StatusId), c.Value)),
+        ConditionType.Emote => EmoteNamesOf(sub).Any(n => NameMatches(n, c.Value)),
+        ConditionType.UseAction => c.Value.Length > 0 && RecentFor(sub.EntityId, ActionMoment(c.Value)),
+        ConditionType.Dies => RecentFor(sub.EntityId, MomentDied),
+        ConditionType.GetsRaised => RecentFor(sub.EntityId, MomentRevived),
+        ConditionType.LowHp => sub.MaxHp > 0 && sub.CurrentHp > 0 &&
+                               sub.CurrentHp * 100UL < (ulong)LowHpPercent(c.Value) * sub.MaxHp,
+        ConditionType.InCombat => sub.StatusFlags.HasFlag(StatusFlags.InCombat),
+        ConditionType.WeaponDrawn => sub.StatusFlags.HasFlag(StatusFlags.WeaponOut),
+        _ => false,
+    };
+
+    private static int LowHpPercent(string value) => int.TryParse(value, out var p) ? Math.Clamp(p, 1, 99) : 25;
+
+    /// <summary>
+    /// Watches HP of everyone a condition could ask about (voiced characters, present party
+    /// members, their targets, and players named in custom events) to spot deaths and raises.
+    /// Returns those characters' ids, which is also who the action watcher listens to.
+    /// </summary>
+    private HashSet<uint> TrackLives(List<Actor> actors, DateTime now)
+    {
+        var watch = new HashSet<uint>();
+        void Add(IBattleChara? b)
+        {
+            if (b == null || b.EntityId == 0 || b.EntityId == 0xE0000000 || !watch.Add(b.EntityId)) return;
+            var hp = b.CurrentHp;
+            if (lifeHp.TryGetValue(b.EntityId, out var prev))
+            {
+                if (prev > 0 && hp == 0) moments[(b.EntityId, MomentDied)] = now;
+                else if (prev == 0 && hp > 0) moments[(b.EntityId, MomentRevived)] = now;
+            }
+            lifeHp[b.EntityId] = hp;
+        }
+
+        foreach (var a in actors)
+        {
+            Add(a.Obj);
+            Add(a.Obj?.TargetObject as IBattleChara);
+        }
+        foreach (var m in currentMembers)
+            if (m.Present) Add(ObjectById(m.EntityId));
+        foreach (var name in actors.SelectMany(a => a.Pack.CustomEvents).SelectMany(e => e.AllConditions)
+                                   .Where(c => c.Who == ConditionWho.Player && c.WhoName.Length > 0)
+                                   .Select(c => c.WhoName).Distinct(StringComparer.OrdinalIgnoreCase))
+            Add(FindPlayer(name));
+
+        // Forget anyone out of sight, so coming back isn't read as dying or getting up.
+        foreach (var id in lifeHp.Keys.Where(id => !watch.Contains(id)).ToList())
+            lifeHp.Remove(id);
+        return watch;
+    }
+
     /// <summary>
     /// A variant of a built-in event (a custom event with a "Built-in event" condition) whose other
     /// conditions are true right now and that this character has lines for on this job.
@@ -1121,7 +1251,7 @@ public sealed class EventWatcher : IDisposable
             if (!ev.Enabled || !ev.IsUsable || ev.VariantOf != builtInEvent) continue;
             if (!HasLines(actor, ev.Id)) continue;
             var a = actor;
-            if (ev.Conditions.All(c => ConditionTrue(a, c, ref moodles))) return ev;
+            if (BlocksTrue(a, ev, ref moodles)) return ev;
         }
         return null;
     }
@@ -1138,11 +1268,11 @@ public sealed class EventWatcher : IDisposable
         {
             if (!ev.IsUsable || !ev.Enabled || ev.VariantOf != null) continue; // variants play from Say()
 
-            var allTrue = ev.Conditions.All(c => ConditionTrue(actor, c, ref moodles));
+            var allTrue = BlocksTrue(actor, ev, ref moodles);
 
             // During the grace period the current state is still recorded (so an already-active
             // Moodle never fires later), it just doesn't speak.
-            var usesMoodles = ev.Conditions.Any(c => c.Type == ConditionType.Moodle);
+            var usesMoodles = ev.AllConditions.Any(c => c.Type == ConditionType.Moodle);
             var maySpeak = baselined.Contains(actor.EntityId) && (!usesMoodles || settled);
 
             var key = (actor.EntityId, ev.Id);
@@ -1150,7 +1280,7 @@ public sealed class EventWatcher : IDisposable
             {
                 Say(actor, ev.Id);
                 // A custom event built on a coffer or party join replaces the built-in line for it.
-                foreach (var c in ev.Conditions)
+                foreach (var c in ev.AllConditions)
                     if (c.Type is ConditionType.OpenCoffer or ConditionType.JoinParty)
                         pendingLines.RemoveAll(p => p.Actor.EntityId == actor.EntityId &&
                                                     (c.Type == ConditionType.JoinParty) == (p.Kind == MomentJoin));
