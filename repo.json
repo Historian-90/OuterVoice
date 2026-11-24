@@ -3,7 +3,7 @@
     "Author": "CJ",
     "Name": "Outer Voice",
     "InternalName": "OuterVoice",
-    "AssemblyVersion": "0.9.19.0",
+    "AssemblyVersion": "0.9.20.0",
     "Punchline": "Voiced lines for your character, and your friends', when things happen in duties.",
     "Description": "Give your character a voice. Record lines for events like raises, deaths, Kardia swaps, wipes and clears, then share your voice pack with friends: when you're in a party together, each of you hears the other's character speak too.\n\nOnly one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play. Optional: if you subscribe to a friend's Dropbox or OneDrive link, the plugin downloads their pack from that service (and nothing else).",
     "ApplicableVersion": "any",
@@ -17,10 +17,10 @@
     ],
     "DalamudApiLevel": 15,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.19/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.19/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.19/latest.zip",
-    "LastUpdate": 1795492240,
-    "Changelog": "- Custom events: the Who box (react to your target, the party or a specific player) is now on\n  **Has status**, **Has Moodle**, **Treasure coffer** (regular coffers), **Dies**, **Gets raised** and\n  **HP below**. Starts casting, Uses an action and Doing emote are about your own character again.\n- **In combat** and **Weapon drawn** are gone from the list; the **State** condition already covers\n  them. Events that already use them keep working.\n- The condition dropdown is grouped: Actions, Status & health, Moments, Surroundings, Variants.\n- Example names in the plugin and README now use Thancred."
+    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.20/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.20/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.20/latest.zip",
+    "LastUpdate": 1795493451,
+    "Changelog": "- New **Replies** page (two speech bubbles): browse a friend's lines and add your own replies. Your\n  reply plays right after their line finishes, said by your character, whenever you're nearby. Several\n  replies per line are picked at random, and a Chance slider sets how often one follows.\n- The Lines page now uses a single speech bubble icon.\n- Friends need 0.9.20 to hear your replies."
   }
 ]
