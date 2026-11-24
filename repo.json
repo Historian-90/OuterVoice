@@ -3,7 +3,7 @@
     "Author": "CJ",
     "Name": "Outer Voice",
     "InternalName": "OuterVoice",
-    "AssemblyVersion": "0.9.18.0",
+    "AssemblyVersion": "0.9.19.0",
     "Punchline": "Voiced lines for your character, and your friends', when things happen in duties.",
     "Description": "Give your character a voice. Record lines for events like raises, deaths, Kardia swaps, wipes and clears, then share your voice pack with friends: when you're in a party together, each of you hears the other's character speak too.\n\nOnly one voice plays at a time. Everything runs on your own machine by reading what the game already shows; nothing is sent while you play. Optional: if you subscribe to a friend's Dropbox or OneDrive link, the plugin downloads their pack from that service (and nothing else).",
     "ApplicableVersion": "any",
@@ -17,10 +17,10 @@
     ],
     "DalamudApiLevel": 15,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.18/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.18/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.18/latest.zip",
-    "LastUpdate": 1795487838,
-    "Changelog": "- Custom events: new **Who** box on many conditions (You, Your target, Anyone in party, or a specific\n  player), so your character can react to others, e.g. \"When Aereon dies\".\n- New conditions: **Dies**, **Gets raised**, **HP below**, **In combat** and **Weapon drawn**.\n- **+ Or when...** adds another set of conditions; the event plays when any one set is true.\n- Friends need 0.9.18 to understand events that use these."
+    "DownloadLinkInstall": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.19/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.19/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Historian-90/OuterVoice/releases/download/v0.9.19/latest.zip",
+    "LastUpdate": 1795492240,
+    "Changelog": "- Custom events: the Who box (react to your target, the party or a specific player) is now on\n  **Has status**, **Has Moodle**, **Treasure coffer** (regular coffers), **Dies**, **Gets raised** and\n  **HP below**. Starts casting, Uses an action and Doing emote are about your own character again.\n- **In combat** and **Weapon drawn** are gone from the list; the **State** condition already covers\n  them. Events that already use them keep working.\n- The condition dropdown is grouped: Actions, Status & health, Moments, Surroundings, Variants.\n- Example names in the plugin and README now use Thancred."
   }
 ]
