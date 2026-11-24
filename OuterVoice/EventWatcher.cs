@@ -128,6 +128,7 @@ public sealed class EventWatcher : IDisposable
         }
 
         Plugin.Framework.Update += OnUpdate;
+        speaker.LineSpoken += OnLineSpoken;
         Plugin.DutyState.DutyStarted += OnDutyStarted;
         Plugin.DutyState.DutyWiped += OnDutyWiped;
         Plugin.DutyState.DutyCompleted += OnDutyCompleted;
@@ -136,6 +137,7 @@ public sealed class EventWatcher : IDisposable
     public void Dispose()
     {
         Plugin.Framework.Update -= OnUpdate;
+        speaker.LineSpoken -= OnLineSpoken;
         Plugin.DutyState.DutyStarted -= OnDutyStarted;
         Plugin.DutyState.DutyWiped -= OnDutyWiped;
         Plugin.DutyState.DutyCompleted -= OnDutyCompleted;
@@ -245,7 +247,9 @@ public sealed class EventWatcher : IDisposable
         var members = Members(me).ToList();
         currentMembers = members;
         var byId = actors.ToDictionary(a => a.EntityId);
+        currentActors = actors;
         FlushPendingShared(now);
+        FlushReply(now);
 
         partnersSeen.Clear();
         foreach (var m in members)
@@ -1074,6 +1078,62 @@ public sealed class EventWatcher : IDisposable
 
         if (casting.Add(key) && baselined.Contains(actor.EntityId))
             Say(actor, $"limit_break_{level}");
+    }
+
+
+    // ---- Replies ------------------------------------------------------------------------------
+
+    private List<Actor> currentActors = new();
+
+    /// <summary>A reply waiting for the line it answers to finish: who, their reply event, when, until when, seed.</summary>
+    private (string Replier, string Event, DateTime Due, DateTime Until, long Seed)? pendingReply;
+
+    private static readonly TimeSpan ReplyPause = TimeSpan.FromSeconds(0.5);
+    private static readonly TimeSpan TextOnlyLineTime = TimeSpan.FromSeconds(2.5);
+
+    /// <summary>
+    /// Someone just said a line: if another character here (you, or a friend nearby) has a reply to
+    /// that exact line, queue it for when the line ends. One reply per line, picked the same way on
+    /// every PC (by name order and the line's shared seed). Replies never get replies.
+    /// </summary>
+    private void OnLineSpoken(VoicePack pack, Line line, string eventName, TimeSpan length, long seed)
+    {
+        if (VoicePack.IsReplyEvent(eventName)) return;
+        var key = VoicePack.LineKeyOf(line);
+        var candidates = currentActors
+            .Where(a => !a.Pack.Character.Equals(pack.Character, StringComparison.OrdinalIgnoreCase))
+            .Select(a => (Actor: a, Reply: a.Pack.Replies.FirstOrDefault(r =>
+                r.To.Equals(pack.Character, StringComparison.OrdinalIgnoreCase) &&
+                r.Line.Equals(key, StringComparison.OrdinalIgnoreCase))))
+            .Where(x => x.Reply != null && HasLines(x.Actor, x.Reply.Event) &&
+                        WorldState.PoseOf(x.Actor.Obj) != WorldState.Pose.Lying)
+            .OrderBy(x => x.Actor.CharacterId, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (candidates.Count == 0) return;
+
+        var pick = candidates[(int)(Fnv1a($"reply|{seed}|{key}") % (ulong)candidates.Count)];
+        if (Fnv1a($"replychance|{seed}|{pick.Actor.CharacterId.ToLowerInvariant()}") % 100 >=
+            (ulong)Math.Clamp(pick.Reply!.Chance, 0, 100))
+            return;
+
+        var wait = (length > TimeSpan.Zero ? length : TextOnlyLineTime) + ReplyPause;
+        var now = DateTime.UtcNow;
+        pendingReply = (pick.Actor.CharacterId, pick.Reply.Event, now + wait, now + wait + TimeSpan.FromSeconds(6),
+                        (long)Fnv1a($"replyline|{seed}|{key}"));
+    }
+
+    private void FlushReply(DateTime now)
+    {
+        if (pendingReply is not { } r || now < r.Due) return;
+        if (Suppressed || Plugin.Instance.Player.IsPlaying)
+        {
+            if (now >= r.Until) pendingReply = null; // something else took over; let it go
+            return;
+        }
+        pendingReply = null;
+        var actor = currentActors.FirstOrDefault(a => a.CharacterId.Equals(r.Replier, StringComparison.OrdinalIgnoreCase));
+        if (actor == null || WorldState.PoseOf(actor.Obj) == WorldState.Pose.Lying) return;
+        speaker.Trigger(actor.Pack, r.Event, actor.Job, r.Seed, speakerEntityId: actor.EntityId, isReply: true);
     }
 
     // ---- Custom events ------------------------------------------------------------------------

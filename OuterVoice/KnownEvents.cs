@@ -121,6 +121,7 @@ public static class KnownEvents
     /// <summary>The Chatter row an event belongs to: its category, "Job abilities", or "Your events".</summary>
     public static string ChatterCategory(VoicePack pack, string eventName)
     {
+        if (VoicePack.IsReplyEvent(eventName)) return "Replies";
         if (pack.CustomEvents.FirstOrDefault(c => c.Id == eventName) is { } custom)
         {
             if (custom.VariantOf is not { } baseEvent) return YourEvents;

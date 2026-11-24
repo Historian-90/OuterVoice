@@ -27,7 +27,7 @@ public sealed partial class ConfigWindow : Window
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
-    private enum Page { Lines, Pack, Friends, Settings }
+    private enum Page { Lines, Pack, Friends, Settings, Replies }
 
     private static readonly string[] BoxStyleNames = ["Parchment", "Frosted", "Shadow", "Classic blue"];
     private static readonly int[] BoxStyleNumbers = [0, 6, 7, 9];
@@ -46,7 +46,8 @@ public sealed partial class ConfigWindow : Window
         pendingTab = null;
 
         ImGui.BeginChild("##rail", new Vector2(RailWidth, 0));
-        RailButton(Page.Lines, FontAwesomeIcon.Comments, "Lines\nWhat your character says, and when.");
+        RailButton(Page.Lines, FontAwesomeIcon.Comment, "Lines\nWhat your character says, and when.");
+        RailButton(Page.Replies, FontAwesomeIcon.Comments, "Replies\nAnswer friends' lines: your reply plays right after theirs.");
         RailButton(Page.Pack, FontAwesomeIcon.FolderOpen, "Voice Pack\nYour pack's folder and character, exporting and publishing.");
         RailButton(Page.Friends, FontAwesomeIcon.UserFriends, "Friends\nFriends' voice packs: links, updates, volume.");
         RailButton(Page.Settings, FontAwesomeIcon.Cog, "Settings\nVolume, pop-ups, chatter, homes, testing.");
@@ -63,6 +64,7 @@ public sealed partial class ConfigWindow : Window
                 ImGui.EndChild();
                 break;
             case Page.Friends: DrawFriends(); break;
+            case Page.Replies: DrawReplies(); break;
             case Page.Settings: DrawSettings(); break;
         }
         ImGui.EndChild();

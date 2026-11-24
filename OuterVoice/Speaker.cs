@@ -81,8 +81,14 @@ public sealed class Speaker
     /// <summary>Why the last Trigger call said nothing (null when it spoke).</summary>
     public string? LastDrop { get; private set; }
 
+    /// <summary>
+    /// A line just started (not test plays): who, which line, the event, how long the clip is, and
+    /// the shared seed. Replies listen to this.
+    /// </summary>
+    public event Action<VoicePack, Line, string, TimeSpan, long>? LineSpoken;
+
     public Line? Trigger(VoicePack pack, string eventName, string job, long seed, bool force = false, bool? initial = null,
-                         uint speakerEntityId = 0, Func<Line, bool>? lineFilter = null)
+                         uint speakerEntityId = 0, Func<Line, bool>? lineFilter = null, bool isReply = false)
     {
         var cfg = plugin.Configuration;
         LastDrop = null;
@@ -149,7 +155,8 @@ public sealed class Speaker
                 LastDrop = "another line was playing";
                 return null;
             }
-            if (!interrupts && (now - lastAnyLine).TotalSeconds < globalCd)
+            // A reply answers the line just said, so it doesn't wait for the usual pause.
+            if (!interrupts && !isReply && (now - lastAnyLine).TotalSeconds < globalCd)
             {
                 LastDrop = $"the {globalCd}-second pause between lines";
                 return null;
@@ -165,13 +172,14 @@ public sealed class Speaker
         lastEventTime[cooldownKey] = now;
         lastAnyLine = now;
 
+        var length = TimeSpan.Zero;
         if (line.AudioPath != null)
         {
             var prefs = pack == Pack ? null : cfg.PrefsFor(pack.Character);
             var volume = cfg.Volume * (prefs?.Volume ?? 100) / 100 * GameVolumePercent() / 100;
             // Friends' clips: capped length, optional loudness limiter.
             var isFriend = pack != Pack;
-            var length = plugin.Player.Play(line.AudioPath, volume, def.Priority,
+            length = plugin.Player.Play(line.AudioPath, volume, def.Priority,
                                             isFriend ? MaxFriendClip : null,
                                             isFriend && cfg.LimitFriendLoudness);
             if (cfg.LipSync && length > TimeSpan.Zero && volume > 0)
@@ -181,6 +189,8 @@ public sealed class Speaker
         if (!string.IsNullOrWhiteSpace(line.Text) && (line.AudioPath != null || cfg.TextWithoutAudio || force))
             ShowText(VoicePack.CleanText(DisplayName(pack)), VoicePack.CleanText(line.Text), pack);
 
+        if (!force)
+            LineSpoken?.Invoke(pack, line, eventName, length, seed);
         return line;
     }
 
@@ -191,6 +201,10 @@ public sealed class Speaker
     {
         plugin.Player.Stop();
     }
+
+    /// <summary>Plays one specific line of any pack (Replies page preview).</summary>
+    public void PreviewLine(VoicePack pack, Line line) =>
+        Trigger(pack, line.Event, line.Job, 0, force: true, lineFilter: l => ReferenceEquals(l, line));
 
     /// <summary>Test helper: play a random line from your own pack.</summary>
     public Line? Test(string eventName, string job) =>

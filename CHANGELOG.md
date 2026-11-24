@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.20
+- New **Replies** page (two speech bubbles): browse a friend's lines and add your own replies. Your
+  reply plays right after their line finishes, said by your character, whenever you're nearby. Several
+  replies per line are picked at random, and a Chance slider sets how often one follows.
+- The Lines page now uses a single speech bubble icon.
+- Friends need 0.9.20 to hear your replies.
+
 ## 0.9.19
 - Custom events: the Who box (react to your target, the party or a specific player) is now on
   **Has status**, **Has Moodle**, **Treasure coffer** (regular coffers), **Dies**, **Gets raised** and

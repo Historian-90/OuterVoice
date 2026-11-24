@@ -25,8 +25,8 @@ After an update, a **What's new** window lists what changed. Open it any time fr
 
 ## Finding your way around
 
-The icons on the left switch pages: **Lines** (what your character says), **Voice Pack** (folder,
-character, sharing), **Friends** (friends' packs) and **Settings**.
+The icons on the left switch pages: **Lines** (what your character says), **Replies** (answering
+friends' lines), **Voice Pack** (folder, character, sharing), **Friends** (friends' packs) and **Settings**.
 
 ## Make your voice pack
 
@@ -309,6 +309,18 @@ Lines for your events are written right under them (lines under Every job work o
 events are saved in your voice pack, so friends who import it hear them too. Give them a
 **Category** (Emotes, RP, Moodles...) to group them, and switch them **On/Off** without deleting
 them.
+
+## Replies
+
+Once a friend's pack has downloaded, open **Replies** (the two speech bubbles). Pick the friend in the
+**Show** box, find one of their lines (say, Thancred's *"Scarlet looks good on me, right?"*), press **Play**
+to hear it, then **+ Add reply** and write and record your answer like any other line.
+
+- Your reply plays **right after their line finishes**, said by your character, whenever you're nearby.
+- Add several replies to the same line and one is picked each time (the same one for everyone).
+- **Chance** sets how often a reply follows that line, handy for lines that come up a lot.
+- Replies are saved in **your** pack, so friends who have your pack hear them too.
+- If several friends replied to the same line, one of them answers. Replies don't get replies.
 
 ## Staying organized
 

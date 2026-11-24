@@ -14,6 +14,28 @@ public class EventDef
     public string Trigger { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Your replies to one of a friend's lines. The reply lines themselves are ordinary lines in your
+/// pack under <see cref="Event"/>; this says which friend line they answer.
+/// </summary>
+public class ReplyTo
+{
+    /// <summary>The hidden event your reply lines use ("reply_" + 8 hex).</summary>
+    public string Event { get; set; } = VoicePack.ReplyPrefix + Guid.NewGuid().ToString("N")[..8];
+
+    /// <summary>The friend's character, "First Last@World".</summary>
+    public string To { get; set; } = string.Empty;
+
+    /// <summary>Their line: "JOB/line id" (e.g. "DRK/burst_01").</summary>
+    public string Line { get; set; } = string.Empty;
+
+    /// <summary>Their line's text when you made the reply (shown if the line changes or goes away).</summary>
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>How often a reply follows their line, in percent.</summary>
+    public int Chance { get; set; } = 100;
+}
+
 public class Line
 {
     public string Id { get; set; } = string.Empty;
@@ -115,6 +137,18 @@ public class VoicePack
 
     /// <summary>Player-made events (emotes, casts, statuses, Moodles).</summary>
     public List<CustomEvent> CustomEvents { get; set; } = new();
+
+    /// <summary>Replies to friends' lines (see <see cref="ReplyTo"/>).</summary>
+    public List<ReplyTo> Replies { get; set; } = new();
+
+    public const string ReplyPrefix = "reply_";
+
+    public static bool IsReplyEvent(string eventName) => eventName.StartsWith(ReplyPrefix, StringComparison.Ordinal);
+
+    public ReplyTo? ReplyFor(string eventName) => Replies.FirstOrDefault(r => r.Event == eventName);
+
+    /// <summary>"JOB/line id": how a reply points at a friend's line.</summary>
+    public static string LineKeyOf(Line line) => $"{line.Job}/{line.Id}";
 
     /// <summary>Lines grouped by job abbreviation. "ALL" = lines usable on any job.</summary>
     public Dictionary<string, List<Line>> Jobs { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -218,7 +252,8 @@ public class VoicePack
     /// It never plays; the Lines tab lists these so they can be moved or deleted.
     /// </summary>
     public bool IsUnused(Line line) =>
-        KnownEvents.Get(line.Event) == null && CustomEvents.All(c => c.Id != line.Event);
+        KnownEvents.Get(line.Event) == null && CustomEvents.All(c => c.Id != line.Event) &&
+        !(IsReplyEvent(line.Event) && Replies.Any(r => r.Event == line.Event));
 
     public bool HasJob(string job) => Jobs.TryGetValue(job, out var lines) && lines.Count > 0;
 
@@ -243,6 +278,8 @@ public class VoicePack
             return def;
         if (CustomEvents.FirstOrDefault(c => c.Id == name) is { } custom)
             return new EventDef { Priority = custom.Priority, CooldownSeconds = custom.CooldownSeconds, Trigger = custom.Summary };
+        if (IsReplyEvent(name) && ReplyFor(name) is { } reply)
+            return new EventDef { Priority = 2, CooldownSeconds = 0, Trigger = $"Reply to {reply.To}" };
 
         var known = KnownEvents.Get(name);
         return known == null
@@ -285,6 +322,9 @@ public class VoicePack
         foreach (var empty in Jobs.Where(j => j.Value.Count == 0 && !j.Key.Equals(SharedJob, StringComparison.OrdinalIgnoreCase))
                                   .Select(j => j.Key).ToList())
             Jobs.Remove(empty);
+
+        // Replies whose lines were all deleted are dropped.
+        Replies.RemoveAll(r => !AllLines.Any(l => l.Event == r.Event));
 
         // Write to a temp file first so a crash mid-save can't corrupt the pack.
         var path = Path.Combine(folder, FileName);
