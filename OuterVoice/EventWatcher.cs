@@ -61,6 +61,10 @@ public sealed class EventWatcher : IDisposable
     private readonly HashSet<uint> deadSeen = new();
     private readonly Dictionary<(uint Caster, string Event), uint> partnerHolder = new();
     private readonly HashSet<(uint Caster, string Event)> partnersSeen = new();
+
+    /// <summary>Partner buffs that just ended: who had it, and when (see PartnerSwitchWindow).</summary>
+    private readonly Dictionary<(uint Caster, string Event), (uint Holder, DateTime At)> partnerDropped = new();
+    private static readonly TimeSpan PartnerSwitchWindow = TimeSpan.FromSeconds(60);
     private readonly HashSet<(uint Caster, uint Target, uint Status)> givenSeen = new();
     private readonly HashSet<(uint Caster, uint Status)> selfSeen = new();
     private readonly HashSet<(uint Caster, string Event)> casting = new();
@@ -320,7 +324,18 @@ public sealed class EventWatcher : IDisposable
                         partnersSeen.Add(key);
                         if (!partnerHolder.TryGetValue(key, out var holder))
                         {
-                            if (speak) Say(caster, def.Event, initial: true);
+                            // Dancers end Closed Position before picking someone new, so the buff is
+                            // briefly on nobody. A pick soon after counts as a switch (or as nothing,
+                            // if it's the same partner again), not as a first pick.
+                            if (partnerDropped.TryGetValue(key, out var dropped) && now - dropped.At <= PartnerSwitchWindow)
+                            {
+                                if (dropped.Holder != m.EntityId && speak) Say(caster, def.Event, initial: false);
+                            }
+                            else if (speak)
+                            {
+                                Say(caster, def.Event, initial: true);
+                            }
+                            partnerDropped.Remove(key);
                         }
                         else if (holder != m.EntityId && speak)
                         {
@@ -345,7 +360,10 @@ public sealed class EventWatcher : IDisposable
 
         // A partner buff that's gone from everyone was dropped; the next one counts as a first pick.
         foreach (var key in partnerHolder.Keys.Where(k => !partnersSeen.Contains(k)).ToList())
+        {
+            partnerDropped[key] = (partnerHolder[key], now);
             partnerHolder.Remove(key);
+        }
 
         var watched = TrackLives(actors, now);
         CheckChests(actors, now);

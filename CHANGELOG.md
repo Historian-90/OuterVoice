@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.21
+- Fixed Dancer's Dance Partner lines: ending Closed Position and picking someone new now plays a
+  switch line instead of a first-pick line. Re-picking the same partner (for example after they
+  died) stays quiet.
+
 ## 0.9.20
 - New **Replies** page (two speech bubbles): browse a friend's lines and add your own replies. Your
   reply plays right after their line finishes, said by your character, whenever you're nearby. Several
