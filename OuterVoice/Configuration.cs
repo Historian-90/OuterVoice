@@ -31,6 +31,9 @@ public class Configuration : IPluginConfiguration
     /// <summary>Lower the game's music and sound effects while a line plays.</summary>
     public bool DuckGameAudio { get; set; } = true;
 
+    /// <summary>Stay quiet in PvP (Frontline, Crystalline Conflict, Rival Wings, the Wolves' Den).</summary>
+    public bool OffInPvp { get; set; } = true;
+
     /// <summary>How loud the other game sounds stay while lowered, in percent of their normal level.</summary>
     public int DuckKeepPercent { get; set; } = 40;
 

@@ -97,6 +97,11 @@ public sealed class Speaker
             LastDrop = !cfg.Enabled ? "the plugin is off" : "a cutscene, dialogue or loading screen just ended";
             return null; // off, or a cutscene / dialogue / loading screen: drop it, don't queue it
         }
+        if (!force && cfg.OffInPvp && Plugin.ClientState.IsPvP)
+        {
+            LastDrop = "PvP (Settings > Playback)";
+            return null;
+        }
 
         var def = pack.GetEvent(eventName);
         var now = DateTime.UtcNow;

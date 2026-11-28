@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.22
+- New setting **Turn off in PvP** (Settings > Playback, on by default): no lines in Frontline,
+  Crystalline Conflict, Rival Wings or the Wolves' Den.
+
 ## 0.9.21
 - Fixed Dancer's Dance Partner lines: ending Closed Position and picking someone new now plays a
   switch line instead of a first-pick line. Re-picking the same partner (for example after they

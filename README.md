@@ -362,3 +362,9 @@ Voices play through Windows directly rather than through the game's sound channe
 they follow the game's **Master** and **Voice** volume (and go silent when either is muted); turn
 that off on the Settings page if you'd rather control them separately. The plugin's own Volume
 slider and per-friend volumes apply on top.
+
+While a line plays, the game's music and sound effects fade down a little so quiet lines are easy to
+hear (Settings > Playback; you choose how far, or turn it off).
+
+**Turn off in PvP** (Settings > Playback, on by default) keeps everyone quiet in Frontline,
+Crystalline Conflict, Rival Wings and the Wolves' Den.

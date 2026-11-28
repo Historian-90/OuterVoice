@@ -168,6 +168,15 @@ public sealed partial class ConfigWindow : Window
             }
             HelpMarker("Voices get quieter with the game's Master and Voice sliders, and go silent when either is muted.");
 
+            var offPvp = cfg.OffInPvp;
+            if (ImGui.Checkbox("Turn off in PvP", ref offPvp))
+            {
+                cfg.OffInPvp = offPvp;
+                cfg.Save();
+            }
+            HelpMarker("No lines (yours or friends') in Frontline, Crystalline Conflict, Rival Wings or the Wolves' Den. " +
+                       "Play buttons still work.");
+
             var duck = cfg.DuckGameAudio;
             if (ImGui.Checkbox("Lower other game sounds while a line plays", ref duck))
             {
